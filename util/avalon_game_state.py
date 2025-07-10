@@ -155,7 +155,7 @@ def validate_game_state(state: GameState, valid_aliases: List[str]) -> tuple[boo
 
 def create_initial_game_state() -> GameState:
     logger.debug("Creating initial game state")
-    state = {
+    state: GameState = {
         'players': [],
         'quests': []
     }
@@ -325,6 +325,32 @@ def _validate_indices(state: GameState, quest_index: int, round_index: int) -> b
         
     logger.debug("Index validation successful")
     return True
+
+# Helper functions for getting readable game state
+def get_player_aliases(state: GameState) -> List[str]:
+    return [player['alias'] for player in state['players']]
+
+def get_quest(state: GameState, n: int) -> Quest:
+    return state['quests'][n]
+
+def get_round(quest: Quest, n: int) -> Round:
+    return quest['rounds'][n]
+
+def get_king(round: Round) -> str:
+    return round['king']
+
+def get_team(round: Round) -> List[str]:
+    return round['team']
+
+def get_approvals(round: Round) -> List[str]:
+    return round['approvals']
+
+def round_approved(state: GameState, round: Round) -> bool:
+    return len(get_approvals(round)) > len(get_player_aliases(state)) // 2
+
+def get_failures(round: Round) -> int:
+    return round['fails']
+
 
 # Helper functions for 1-based quest numbers
 def quest_index_to_number(index: int) -> int:

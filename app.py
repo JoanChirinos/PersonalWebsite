@@ -339,8 +339,6 @@ def get_game_notes(game_id):
     notes = db.get_game_notes(game_id)
     return jsonify({'notes': notes}), 200
 
-# Add these new routes to your existing routes
-
 @app.route('/api/players', methods=['GET'])
 def get_all_players():
     players = db.get_all_players()
@@ -355,7 +353,6 @@ def get_game_details(game_id):
 
 @app.route('/api/games', methods=['GET'])
 def get_all_games():
-    # Add this method to your AvalonDB class
     with db.get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM games")
