@@ -55,11 +55,8 @@
                             <div class="col-3">
                                 <span class="btn btn-light disabled w-100 mb-0" style="pointer-events:none;background:none;border:none;box-shadow:none;">New Player</span>
                             </div>
-                            <div class="col-4">
+                            <div class="col-7">
                                 <input type="text" id="new-player-name" class="form-control" placeholder="Name">
-                            </div>
-                            <div class="col-3">
-                                <input type="text" id="new-player-alias" class="form-control" placeholder="Alias">
                             </div>
                             <div class="col-2">
                                 <button id="add-new-btn" class="btn btn-success w-100">Add</button>
@@ -87,7 +84,7 @@
             .then(r => r.json())
             .then(data => {
                 (data.players || []).forEach(p => {
-                    playerNameMap[p.alias] = p.name;
+                    playerNameMap[p.player_id] = p.name;
                 });
             });
     }
@@ -106,12 +103,12 @@
                     loadGamePlayers();
                     document.getElementById('add-existing-btn').onclick = function () {
                         const select = document.getElementById('player-select');
-                        const alias = select.value;
-                        if (!alias || select.disabled) return;
+                        const player_id = select.value;
+                        if (!player_id || select.disabled) return;
                         fetch(`/api/games/${gameId}/players/add`, {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({alias})
+                            body: JSON.stringify({player_id})
                         })
                             .then(() => {
                                 loadGamePlayers();
@@ -120,23 +117,21 @@
                     };
                     document.getElementById('add-new-btn').onclick = function () {
                         const name = document.getElementById('new-player-name').value.trim();
-                        const alias = document.getElementById('new-player-alias').value.trim();
-                        if (!name || !alias) return alert('Name and alias required');
+                        if (!name) return alert('Name required');
                         fetch('/api/players/get')
                             .then(r => r.json())
                             .then(data => {
-                                const exists = (data.players || []).some(p => p.alias === alias);
-                                if (exists) return alert('A player with that alias already exists.');
-                                fetch('/api/players/add', {
+                                 fetch('/api/players/add', {
                                     method: 'POST',
                                     headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({name, alias})
+                                    body: JSON.stringify({name})
                                 })
                                     .then(() => {
+                                        const player_id = data.players[data.players.length - 1].player_id;
                                         fetch(`/api/games/${gameId}/players/add`, {
                                             method: 'POST',
                                             headers: {'Content-Type': 'application/json'},
-                                            body: JSON.stringify({alias})
+                                            body: JSON.stringify({player_id})
                                         }).then(() => {
                                             loadPlayerMap();
                                             loadPlayersDropdown();
@@ -146,17 +141,16 @@
                             })
                             .then(() => {
                                     document.getElementById('new-player-name').value = '';
-                                    document.getElementById('new-player-alias').value = '';
                                 }
                             )
                     };
                     document.getElementById('game-players').onclick = function (e) {
                         if (e.target.classList.contains('remove-player-btn')) {
-                            const alias = e.target.getAttribute('data-alias');
+                            const player_id = e.target.getAttribute('data-player_id');
                             fetch(`/api/games/${gameId}/players/remove`, {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({alias})
+                                body: JSON.stringify({player_id})
                             })
                                 .then(() => {
                                     loadPlayersDropdown();
@@ -187,7 +181,7 @@
                             quest.rounds.forEach((round, rIdx) => {
                                 const teamNames = round.team.map(a => playerNameMap[a] || a).join(', ');
                                 const approvals = (round.approvals || []).map(a => playerNameMap[a] || a).join(', ');
-                                const allPlayers = state.players.map(p => p.alias);
+                                const allPlayers = state.players.map(p => p.player_id);
                                 const rejects = allPlayers.filter(a => !(round.approvals || []).includes(a)).map(a => playerNameMap[a] || a).join(', ');
                                 questBody.innerHTML += `
                     <div class='card mb-2'>
@@ -224,15 +218,15 @@
                 container.appendChild(currentQuestCard);
 
                 // Render player cards for selection
-                const allPlayers = state.players.map(p => p.alias);
+                const allPlayers = state.players.map(p => p.player_id);
                 // King selection
                 const kingSelect = document.getElementById('king-select');
-                allPlayers.forEach(alias => {
+                allPlayers.forEach(player_id => {
                     const card = document.createElement('div');
                     card.className = 'card me-2 mb-2 selectable-card';
                     card.style.cursor = 'pointer';
-                    card.setAttribute('data-alias', alias);
-                    card.textContent = playerNameMap[alias] || alias;
+                    card.setAttribute('data-player_id', player_id);
+                    card.textContent = playerNameMap[player_id] || player_id;
                     card.onclick = function () {
                         document.querySelectorAll('#king-select .selectable-card').forEach(c => c.classList.remove('bg-info'));
                         card.classList.toggle('bg-info');
@@ -241,12 +235,12 @@
                 });
                 // Team selection
                 const teamSelect = document.getElementById('team-select');
-                allPlayers.forEach(alias => {
+                allPlayers.forEach(player_id => {
                     const card = document.createElement('div');
                     card.className = 'card me-2 mb-2 selectable-card';
                     card.style.cursor = 'pointer';
-                    card.setAttribute('data-alias', alias);
-                    card.textContent = playerNameMap[alias] || alias;
+                    card.setAttribute('data-player_id', player_id);
+                    card.textContent = playerNameMap[player_id] || player_id;
                     card.onclick = function () {
                         card.classList.toggle('bg-info');
                     };
@@ -254,12 +248,12 @@
                 });
                 // Approvals selection
                 const approvalsSelect = document.getElementById('approvals-select');
-                allPlayers.forEach(alias => {
+                allPlayers.forEach(player_id => {
                     const card = document.createElement('div');
                     card.className = 'card me-2 mb-2 selectable-card';
                     card.style.cursor = 'pointer';
-                    card.setAttribute('data-alias', alias);
-                    card.textContent = playerNameMap[alias] || alias;
+                    card.setAttribute('data-player_id', player_id);
+                    card.textContent = playerNameMap[player_id] || player_id;
                     card.onclick = function () {
                         card.classList.toggle('bg-success');
                     };
@@ -284,10 +278,10 @@
                     // Gather selections
                     const king = document.querySelector('#king-select .bg-info');
                     if (!king) return alert('Select a king');
-                    const kingAlias = king.getAttribute('data-alias');
-                    const team = Array.from(document.querySelectorAll('#team-select .bg-info')).map(c => c.getAttribute('data-alias'));
+                    const kingId = king.getAttribute('data-player_id');
+                    const team = Array.from(document.querySelectorAll('#team-select .bg-info')).map(c => c.getAttribute('data-player_id'));
                     if (team.length === 0) return alert('Select at least one team member');
-                    const approvals = Array.from(document.querySelectorAll('#approvals-select .bg-success')).map(c => c.getAttribute('data-alias'));
+                    const approvals = Array.from(document.querySelectorAll('#approvals-select .bg-success')).map(c => c.getAttribute('data-player_id'));
                     const failsCard = document.querySelector('#failures-select .bg-danger');
                     const fails = failsCard ? parseInt(failsCard.getAttribute('data-fails')) : 0;
 // Find current quest index (API expects 1-based)
@@ -295,7 +289,7 @@
                     fetch(`/api/games/${gameId}/quests/${questNum}/rounds/add`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({team, king: kingAlias, approvals, failures: fails})
+                        body: JSON.stringify({team, king: kingId, approvals, failures: fails})
                     })
                         .then(r => r.json())
                         .then(data => {
@@ -327,15 +321,15 @@
             if (!select) return;
             select.innerHTML = '';
             console.log(gameData);
-            const gamePlayers = (gameData.state.players || []).map(p => p.alias);
+            const gamePlayers = (gameData.state.players || []).map(p => p.player_id);
             console.log(gamePlayers);
             console.log(playersData);
             // Only show players not already in the game
             (playersData.players || []).forEach(p => {
-                if (p.active === 1 && !gamePlayers.includes(p.alias)) {
+                if (p.active === 1 && !gamePlayers.includes(p.player_id)) {
                     const option = document.createElement('option');
-                    option.value = p.alias;
-                    option.textContent = `${p.name} (${p.alias})`;
+                    option.value = p.player_id;
+                    option.textContent = `${p.name} (${p.player_id})`;
                     select.appendChild(option);
                 }
             });
@@ -353,8 +347,8 @@
                 (game.state.players || []).forEach(p => {
                     const btn = document.createElement('button');
                     btn.className = 'btn btn-outline-secondary btn-md me-2 mb-2';
-                    btn.textContent = playerNameMap[p.alias] || p.name || p.alias;
-                    btn.setAttribute('data-alias', p.alias);
+                    btn.textContent = playerNameMap[p.player_id] || p.name || p.player_id;
+                    btn.setAttribute('data-player_id', p.player_id);
                     btn.onmouseover = function () {
                         btn.classList.remove('btn-outline-secondary');
                         btn.classList.add('btn-danger');
@@ -367,7 +361,7 @@
                         fetch(`/api/games/${gameId}/players/remove`, {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({alias: p.alias})
+                            body: JSON.stringify({player_id: p.player_id})
                         }).then(() => {
                             loadPlayersDropdown();
                             loadGamePlayers();

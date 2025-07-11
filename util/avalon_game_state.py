@@ -9,14 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class Player(TypedDict):
-    alias: str  # References players.alias in SQLite
+    player_id: int  # References players.player_id in SQLite
     role: str   # The game role assigned to the player
 
 class Round(TypedDict):
-    team: List[str]       # List of player aliases
-    approvals: List[str]  # List of player aliases who approved
+    team: List[int]       # List of player player_ids
+    approvals: List[int]  # List of player player_ids who approved
     fails: int            # Number of fail cards played
-    king: str             # Alias of the player who is king for this round
+    king: int             # player_id of the player who is king for this round
 
 class Quest(TypedDict):
     rounds: List[Round]
@@ -25,13 +25,13 @@ class GameState(TypedDict):
     players: List[Player]
     quests: List[Quest]
 
-def validate_game_state(state: GameState, valid_aliases: List[str]) -> tuple[bool, Optional[str]]:
+def validate_game_state(state: GameState, valid_player_ids: List[str]) -> tuple[bool, Optional[str]]:
     """
     Validates that a game state matches the schema and references valid players
 
     Args:
         state: GameState to validate
-        valid_aliases: List of valid player aliases to check against
+        valid_player_ids: List of valid player player_ids to check against
 
     Returns:
         tuple[bool, Optional[str]]: (True, None) if state is valid, (False, error_message) if invalid
@@ -41,7 +41,7 @@ def validate_game_state(state: GameState, valid_aliases: List[str]) -> tuple[boo
         when roles are revealed.
         Rounds may have empty approvals list and no fails recorded until voting/quest is complete.
     """
-    logger.debug(f'Validating game state with {len(valid_aliases)} valid aliases')
+    logger.debug(f'Validating game state with {len(valid_player_ids)} valid player_ids')
     
     # Basic structure validation
     if not isinstance(state, dict):
@@ -62,23 +62,24 @@ def validate_game_state(state: GameState, valid_aliases: List[str]) -> tuple[boo
         return False, 'Quests must be a list'
     
     # Convert list to set for O(1) lookups
-    valid_aliases_set = set(valid_aliases)
+    valid_player_ids_set = set(valid_player_ids)
+    logger.debug(f'Valid player IDs set: {valid_player_ids_set}')
     
     # Validate players
     for player_idx, player in enumerate(state['players']):
         if not isinstance(player, dict):
             return False, f'Player {player_idx} must be a dictionary'
-        if 'alias' not in player:
-            return False, f'Player {player_idx} missing "alias" field'
+        if 'player_id' not in player:
+            return False, f'Player {player_idx} missing "player_id" field'
         if 'role' not in player:
             return False, f'Player {player_idx} missing "role" field'
-        if not isinstance(player['alias'], str):
-            return False, f'Player {player_idx} alias must be a string'
+        if not isinstance(player['player_id'], int):
+            return False, f'Player {player_idx} player_id must be a string'
         if not isinstance(player['role'], str):
             return False, f'Player {player_idx} role must be a string'
         # Note: role can be an empty string
-        if player['alias'] not in valid_aliases_set:
-            return False, f'Invalid player alias: {player['alias']}'
+        if player['player_id'] not in valid_player_ids_set:
+            return False, f'Invalid player player_id: {player['player_id']}'
     
     # Validate quests
     for quest_idx, quest in enumerate(state['quests']):
@@ -113,22 +114,22 @@ def validate_game_state(state: GameState, valid_aliases: List[str]) -> tuple[boo
                 logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: team not a list')
                 return False, f'Team in Quest {quest_idx} Round {round_idx} must be a list'
                 
-            if not isinstance(round['king'], str):
+            if not isinstance(round['king'], int):
                 logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: king not a string')
                 return False, f'King in Quest {quest_idx} Round {round_idx} must be a string'
                 
-            if round['king'] not in valid_aliases_set:
+            if round['king'] not in valid_player_ids_set:
                 logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: invalid king')
-                return False, f'Invalid king alias in Quest {quest_idx} Round {round_idx}: {round['king']}'
+                return False, f'Invalid king player_id in Quest {quest_idx} Round {round_idx}: {round['king']}'
             
             # Validate team members exist
-            for alias in round['team']:
-                if not isinstance(alias, str):
-                    logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: team member not a string')
-                    return False, f'Team member alias in Quest {quest_idx} Round {round_idx} must be a string'
-                if alias not in valid_aliases_set:
+            for player_id in round['team']:
+                if not isinstance(player_id, int):
+                    logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: team member not an int')
+                    return False, f'Team member player_id in Quest {quest_idx} Round {round_idx} must be an int'
+                if player_id not in valid_player_ids_set:
                     logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: invalid team member')
-                    return False, f'Invalid team member alias in Quest {quest_idx} Round {round_idx}: {alias}'
+                    return False, f'Invalid team member player_id in Quest {quest_idx} Round {round_idx}: {player_id}'
             
             # Optional fields validation
             if 'approvals' in round:
@@ -137,13 +138,13 @@ def validate_game_state(state: GameState, valid_aliases: List[str]) -> tuple[boo
                     return False, f'Approvals in Quest {quest_idx} Round {round_idx} must be a list'
                     
                 # Validate approvals exist if present
-                for alias in round['approvals']:
-                    if not isinstance(alias, str):
+                for player_id in round['approvals']:
+                    if not isinstance(player_id, int):
                         logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: approval not a string')
-                        return False, f'Approval alias in Quest {quest_idx} Round {round_idx} must be a string'
-                    if alias not in valid_aliases_set:
+                        return False, f'Approval player_id in Quest {quest_idx} Round {round_idx} must be a string'
+                    if player_id not in valid_player_ids_set:
                         logger.error(f'Round {round_idx} in Quest {quest_idx} validation failed: invalid approval')
-                        return False, f'Invalid approval alias in Quest {quest_idx} Round {round_idx}: {alias}'
+                        return False, f'Invalid approval player_id in Quest {quest_idx} Round {round_idx}: {player_id}'
             
             if 'fails' in round:
                 if not isinstance(round['fails'], int):
@@ -183,15 +184,15 @@ def remove_quest(state: GameState, quest_index: int) -> Optional[GameState]:
     logger.debug(f'State after removing quest: {new_state}')
     return new_state
 
-def add_round(state: GameState, quest_index: int, team: List[str], king: str) -> Optional[GameState]:
+def add_round(state: GameState, quest_index: int, team: List[int], king: int) -> Optional[GameState]:
     """
     Adds a new round to a specific quest
 
     Args:
         state: Current game state
         quest_index: 0-based index of the quest
-        team: List of player aliases for the round team
-        king: Alias of the player who is king for this round
+        team: List of player player_ids for the round team
+        king: player_id of the player who is king for this round
 
     Returns:
         Optional[GameState]: New game state with added round, or None if quest_index is invalid
@@ -231,28 +232,28 @@ def remove_round(state: GameState, quest_index: int, round_index: int) -> Option
     logger.debug(f'State after removing round: {new_state}')
     return new_state
 
-def add_player(state: GameState, alias: str, role: str = '') -> GameState:
-    logger.debug(f'Adding player {alias} with role {role}')
+def add_player(state: GameState, player_id: int, role: str = '') -> GameState:
+    logger.debug(f'Adding player {player_id} with role {role}')
     logger.debug(f'Current state before adding player: {state}')
     new_state = deepcopy(state)
-    new_state['players'].append({'alias': alias, 'role': role})
+    new_state['players'].append({'player_id': player_id, 'role': role})
     logger.debug(f'New state after adding player: {new_state}')
     return new_state
 
-def remove_player(state: GameState, alias: str) -> Optional[GameState]:
-    logger.debug(f'Removing player {alias}')
+def remove_player(state: GameState, player_id: int) -> Optional[GameState]:
+    logger.debug(f'Removing player {player_id}')
     logger.debug(f'Current state before adding player: {state}')
 
-    if alias not in (player['alias'] for player in state['players']):
-        logger.error(f'Player {alias} not in game')
+    if player_id not in (player['player_id'] for player in state['players']):
+        logger.error(f'Player {player_id} not in game')
         return None
 
     new_state = deepcopy(state)
-    new_state['players'] = [player for player in state['players'] if player['alias'] != alias]
+    new_state['players'] = [player for player in state['players'] if player['player_id'] != player_id]
     logger.debug(f'State after removing player: {new_state}')
     return new_state
 
-def update_team(state: GameState, quest_index: int, round_index: int, team: List[str]) -> Optional[GameState]:
+def update_team(state: GameState, quest_index: int, round_index: int, team: List[int]) -> Optional[GameState]:
     """
     Updates the team for a specific round
 
@@ -370,8 +371,8 @@ def _validate_indices(state: GameState, quest_index: int, round_index: int) -> b
     return True
 
 # Helper functions for getting readable game state
-def get_player_aliases(state: GameState) -> List[str]:
-    return [player['alias'] for player in state['players']]
+def get_player_ids(state: GameState) -> List[int]:
+    return [player['player_id'] for player in state['players']]
 
 def get_quest(state: GameState, n: int) -> Quest:
     return state['quests'][n]
@@ -389,7 +390,7 @@ def get_approvals(round: Round) -> List[str]:
     return round['approvals']
 
 def round_approved(state: GameState, round: Round) -> bool:
-    return len(get_approvals(round)) > len(get_player_aliases(state)) // 2
+    return len(get_approvals(round)) > len(get_player_ids(state)) // 2
 
 def get_failures(round: Round) -> int:
     return round['fails']

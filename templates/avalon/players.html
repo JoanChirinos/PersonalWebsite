@@ -20,7 +20,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Name</th>
-                        <th>Alias</th>
+                        <th>Player ID</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -41,14 +41,14 @@ function loadPlayers() {
             (data.players || []).forEach(player => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><input type="text" class="form-control form-control-sm player-name-input" value="${player.name}" data-alias="${player.alias}"></td>
-                    <td>${player.alias}</td>
+                    <td><input type="text" class="form-control form-control-sm player-name-input" value="${player.name}" data-player_id="${player.player_id}"></td>
+                    <td>${player.player_id}</td>
                     <td>${player.active ? '<span class=\'badge bg-success\'>Active</span>' : '<span class=\'badge bg-secondary\'>Inactive</span>'}</td>
                     <td>
-                        <button class="btn btn-sm btn-${player.active ? 'secondary' : 'success'} toggle-active-btn" data-alias="${player.alias}" data-active="${player.active ? '0' : '1'}">
+                        <button class="btn btn-sm btn-${player.active ? 'secondary' : 'success'} toggle-active-btn" data-player_id="${player.player_id}" data-active="${player.active ? '0' : '1'}">
                             Mark ${player.active ? 'Inactive' : 'Active'}
                         </button>
-                        <button class="btn btn-sm btn-warning ms-1 update-name-btn" data-alias="${player.alias}">Update Name</button>
+                        <button class="btn btn-sm btn-warning ms-1 update-name-btn" data-player_id="${player.player_id}">Update Name</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -57,25 +57,25 @@ function loadPlayers() {
 }
 document.getElementById('players-table-body').onclick = function(e) {
     if (e.target.classList.contains('toggle-active-btn')) {
-        const alias = e.target.getAttribute('data-alias');
+        const player_id = e.target.getAttribute('data-player_id');
         const active = e.target.getAttribute('data-active') === '1';
         fetch('/api/players/set_active', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ alias, active })
+            body: JSON.stringify({ player_id, active })
         })
         .then(r => r.json())
         .then(() => loadPlayers());
     }
     if (e.target.classList.contains('update-name-btn')) {
-        const alias = e.target.getAttribute('data-alias');
-        const input = document.querySelector(`.player-name-input[data-alias='${alias}']`);
+        const player_id = e.target.getAttribute('data-player_id');
+        const input = document.querySelector(`.player-name-input[data-player_id='${player_id}']`);
         const newName = input.value.trim();
         if (!newName) return alert('Name cannot be empty');
         fetch('/api/players/update_name', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ alias, name: newName })
+            body: JSON.stringify({ player_id, name: newName })
         })
         .then(r => r.json())
         .then(data => {

@@ -114,11 +114,8 @@ def add_player():
         schema:
           type: object
           required:
-            - alias
             - name
           properties:
-            alias:
-              type: string
             name:
               type: string
     responses:
@@ -130,14 +127,16 @@ def add_player():
         description: Player already exists
     """
     data = request.get_json()
-    if not data or 'alias' not in data or 'name' not in data:
+    if not data or 'name' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
 
-    success = db.add_player(data['alias'], data['name'])
+    success, player_id = db.add_player(data['name'])
     if not success:
         return jsonify({'error': 'Player already exists'}), 409
 
-    return jsonify({'message': 'Player added successfully'}), 201
+    return jsonify({
+        'message': 'Player added successfully',
+        'player_id': player_id}), 201
 
 @app.route('/api/players/get', methods=['GET'])
 def get_players():
@@ -188,11 +187,11 @@ def set_player_active():
         schema:
           type: object
           required:
-            - alias
+            - player_id
             - active
           properties:
-            alias:
-              type: string
+            player_id:
+              type: integer
             active:
               type: boolean
     responses:
@@ -204,9 +203,9 @@ def set_player_active():
         description: Player not found
     """
     data = request.get_json()
-    if not data or 'alias' not in data or 'active' not in data:
+    if not data or 'player_id' not in data or 'active' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
-    success = db.set_player_active(data['alias'], data['active'])
+    success = db.set_player_active(data['player_id'], data['active'])
     if not success:
         return jsonify({'error': 'Player not found'}), 404
     return jsonify({'message': 'Player status updated'}), 200
@@ -285,10 +284,10 @@ def add_game_player(game_id):
         schema:
           type: object
           required:
-            - alias
+            - player_id
           properties:
-            alias:
-              type: string
+            player_id:
+              type: integer
     responses:
       200:
         description: Player added to game
@@ -298,22 +297,24 @@ def add_game_player(game_id):
         description: Game or player not found
     """
     data = request.get_json()
-    if not data or 'alias' not in data:
+    if not data or 'player_id' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
+
+    player_id = int(data['player_id'])
 
     game = db.get_game_state(game_id)
     if not game:
         return jsonify({'error': 'Game not found'}), 404
 
     # Check if player exists
-    player = db.get_player(data['alias'])
+    player = db.get_player(player_id)
     if not player:
         return jsonify({'error': 'Player not found'}), 404
 
     state = game['state']
 
     # Empty role; to be filled in at the end
-    state = ags.add_player(state, data['alias'], '')
+    state = ags.add_player(state, player_id, '')
 
     if not db.update_game_state(game_id, state):
         return jsonify({'error': 'Invalid game state'}), 400
@@ -335,10 +336,10 @@ def remove_game_player(game_id):
         schema:
           type: object
           required:
-            - alias
+            - player_id
           properties:
-            alias:
-              type: string
+            player_id:
+              type: integer
     responses:
       200:
         description: Player removed from game
@@ -348,15 +349,17 @@ def remove_game_player(game_id):
         description: Game not found
     """
     data = request.get_json()
-    if not data or 'alias' not in data:
+    if not data or 'player_id' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
+
+    player_id = int(data['player_id'])
 
     game = db.get_game_state(game_id)
     if not game:
         return jsonify({'error': 'Game not found'}), 404
 
     state = game['state']
-    new_state = ags.remove_player(state, data['alias'])
+    new_state = ags.remove_player(state, player_id)
     if new_state is None:
         return jsonify({'error': 'Player not in game'}), 400
 
@@ -451,7 +454,9 @@ def add_round(game_id, quest_number):
     state = game['state']
 
     # Add the round with the proposed team
-    state = ags.add_round(state, quest_index, data['team'], data['king'])
+    team = [int(player_id) for player_id in data['team']]
+    king = int(data['king'])
+    state = ags.add_round(state, quest_index, team, king)
     if state is None:
         return jsonify({'error': 'Invalid quest number'}), 400
 
@@ -460,12 +465,12 @@ def add_round(game_id, quest_number):
     # Update the round with approvals if provided and not empty
     if 'approvals' in data:
         # Filter out any empty strings from approvals list
-        approvals = [a for a in data['approvals'] if a]
+        approvals = [int(a) for a in data['approvals'] if a]
         state = ags.update_approvals(state, quest_index, round_index, approvals)
 
     # If failures were provided, update fails
     if 'failures' in data:
-        state = ags.update_fails(state, quest_index, round_index, data['failures'])
+        state = ags.update_fails(state, quest_index, round_index, int(data['failures']))
 
     if not db.update_game_state(game_id, state):
         return jsonify({'error': 'Invalid game state'}), 400
@@ -599,11 +604,11 @@ def update_player_name():
         schema:
           type: object
           required:
-            - alias
+            - player_id
             - name
           properties:
-            alias:
-              type: string
+            player_id:
+              type: integer
             name:
               type: string
     responses:
@@ -615,9 +620,10 @@ def update_player_name():
         description: Player not found
     """
     data = request.get_json()
-    if not data or 'alias' not in data or 'name' not in data:
+    if not data or 'player_id' not in data or 'name' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
-    success = db.update_player_name(data['alias'], data['name'])
+    player_id = int(data['player_id'])
+    success = db.update_player_name(player_id, data['name'])
     if not success:
         return jsonify({'error': 'Player not found'}), 404
     return jsonify({'message': 'Player name updated'}), 200

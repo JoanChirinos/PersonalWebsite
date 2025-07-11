@@ -3,7 +3,7 @@ import sqlite3
 import json
 import uuid
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from contextlib import contextmanager
 import datetime
 from pathlib import Path
@@ -50,7 +50,7 @@ class AvalonDB:
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS players (
-                    alias TEXT PRIMARY KEY,
+                    player_id INTEGER PRIMARY KEY,
                     name TEXT NOT NULL,
                     active INTEGER NOT NULL DEFAULT 1
                 )
@@ -78,27 +78,28 @@ class AvalonDB:
             conn.commit()
 
     # Player operations
-    def add_player(self, alias: str, name: str) -> bool:
+    def add_player(self, name: str) -> Tuple[bool, Optional[int]]:
         """Add a new player to the database"""
+        player_id = self.get_next_player_id()
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "INSERT INTO players (alias, name, active) VALUES (?, ?, 1)",
-                    (alias, name)
+                    "INSERT INTO players (player_id, name, active) VALUES (?, ?, 1)",
+                    (player_id, name)
                 )
                 conn.commit()
-                return True
+                return True, player_id
         except sqlite3.IntegrityError:
-            return False
+            return False, None
 
-    def set_player_active(self, alias: str, active: bool) -> bool:
+    def set_player_active(self, player_id: int, active: bool) -> bool:
         """Set the active status of a player"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE players SET active = ? WHERE alias = ?",
-                (1 if active else 0, alias)
+                "UPDATE players SET active = ? WHERE player_id = ?",
+                (1 if active else 0, player_id)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -110,11 +111,11 @@ class AvalonDB:
             cursor.execute("SELECT * FROM players WHERE active = 1")
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_player(self, alias: str) -> Optional[Dict]:
-        """Get player by alias"""
+    def get_player(self, player_id: int) -> Optional[Dict]:
+        """Get player by player_id"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM players WHERE alias = ?", (alias,))
+            cursor.execute("SELECT * FROM players WHERE player_id = ?", (player_id,))
             result = cursor.fetchone()
             return dict(result) if result else None
 
@@ -125,13 +126,21 @@ class AvalonDB:
             cursor.execute("SELECT * FROM players")
             return [dict(row) for row in cursor.fetchall()]
 
-    def update_player_name(self, alias: str, name: str) -> bool:
-        """Update a player's name by alias"""
+    def get_next_player_id(self) -> int:
+        """Get the next available player ID"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(player_id) FROM players")
+            result = cursor.fetchone()[0]
+            return (result + 1) if result is not None else 1
+
+    def update_player_name(self, player_id: int, name: str) -> bool:
+        """Update a player's name by player_id"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE players SET name = ? WHERE alias = ?",
-                (name, alias)
+                "UPDATE players SET name = ? WHERE player_id = ?",
+                (name, player_id)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -192,11 +201,11 @@ class AvalonDB:
         Returns:
             tuple[bool, Optional[str]]: (True, None) if update was successful, (False, error_message) if failed
         """
-        # Get list of valid aliases from database
-        valid_aliases = [player['alias'] for player in self.get_all_players()]
+        # Get list of valid player_ids from database
+        valid_player_ids = [player['player_id'] for player in self.get_all_players()]
         
         # Validate the new state before saving
-        is_valid, error_msg = ags.validate_game_state(new_state, valid_aliases)
+        is_valid, error_msg = ags.validate_game_state(new_state, valid_player_ids)
         if not is_valid:
             return False, error_msg
             
@@ -271,17 +280,17 @@ if __name__ == "__main__":
     
     # Add 5 test players
     test_players = [
-        ("alice", "Alice Anderson"),
-        ("bob", "Bob Baker"),
-        ("carol", "Carol Chen"),
-        ("dave", "Dave Davis"),
-        ("eve", "Eve Edwards")
+        (1, "Alice Anderson"),
+        (2, "Bob Baker"),
+        (3, "Carol Chen"),
+        (4, "Dave Davis"),
+        (5, "Eve Edwards")
     ]
     
     print("Adding players...")
-    for alias, name in test_players:
-        success = db.add_player(alias, name)
-        print(f"Added {name} ({alias}): {'✓' if success else '✗'}")
+    for player_id, name in test_players:
+        success = db.add_player(player_id, name)
+        print(f"Added {name} ({player_id}): {'✓' if success else '✗'}")
     
     # Create a new game
     game_id = db.create_game()
