@@ -119,7 +119,7 @@ class AvalonDB:
             conn.commit()
         return game_id
 
-    def get_game(self, game_id: str) -> Optional[Dict]:
+    def get_game_state(self, game_id: str) -> Optional[Dict]:
         """Get game by ID"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     print(f"\nCreated game: {game_id}")
     
     # Get initial state
-    game = db.get_game(game_id)
+    game = db.get_game_state(game_id)
     state = game['state']
     
     # First quest - 2 rounds

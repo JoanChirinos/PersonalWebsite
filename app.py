@@ -220,139 +220,30 @@ def avalon():
     </html>
     '''
 
-@app.route('/api/players', methods=['POST'])
+@app.route('/api/players/add', methods=['POST'])
 def add_player():
     data = request.get_json()
     if not data or 'alias' not in data or 'name' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
-        
+
     success = db.add_player(data['alias'], data['name'])
     if not success:
         return jsonify({'error': 'Player already exists'}), 409
-        
+
     return jsonify({'message': 'Player added successfully'}), 201
 
-@app.route('/api/games', methods=['POST'])
+@app.route('/api/players/get', methods=['GET'])
+def get_players():
+    players = db.get_all_players()
+    return jsonify({'players': players}), 200
+
+@app.route('/api/games/create', methods=['POST'])
 def create_game():
     game_id = db.create_game()
     return jsonify({'gameId': game_id}), 201
 
-@app.route('/api/games/<game_id>/players', methods=['POST'])
-def add_game_player(game_id):
-    data = request.get_json()
-    if not data or 'alias' not in data or 'role' not in data:
-        return jsonify({'error': 'Missing required fields'}), 400
-        
-    game = db.get_game(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-        
-    # Check if player exists
-    player = db.get_player(data['alias'])
-    if not player:
-        return jsonify({'error': 'Player not found'}), 404
-        
-    state = game['state']
-    state = ags.add_player(state, data['alias'], data['role'])
-    
-    if not db.update_game_state(game_id, state):
-        return jsonify({'error': 'Invalid game state'}), 400
-        
-    return jsonify({'message': 'Player added to game'}), 200
-
-@app.route('/api/games/<game_id>/quests', methods=['POST'])
-def add_quest(game_id):
-    game = db.get_game(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-        
-    state = game['state']
-    state = ags.add_quest(state)
-    
-    if not db.update_game_state(game_id, state):
-        return jsonify({'error': 'Invalid game state'}), 400
-        
-    return jsonify({'message': 'Quest added', 'questNumber': len(state['quests'])}), 200
-
-@app.route('/api/games/<game_id>/quests/<int:quest_number>/rounds', methods=['POST'])
-def add_round(game_id, quest_number):
-    data = request.get_json()
-    if not data or 'team' not in data or 'king' not in data:
-        return jsonify({'error': 'Missing required fields'}), 400
-        
-    game = db.get_game(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-        
-    quest_index = ags.quest_number_to_index(quest_number)
-    state = game['state']
-    
-    # Add the round with the proposed team
-    state = ags.add_round(state, quest_index, data['team'], data['king'])
-    if state is None:
-        return jsonify({'error': 'Invalid quest number'}), 400
-        
-    # Update the round with approvals if provided and not empty
-    if 'approvals' in data:
-        round_index = len(state['quests'][quest_index]['rounds']) - 1
-        # Filter out any empty strings from approvals list
-        approvals = [a for a in data['approvals'] if a]
-        state = ags.update_approvals(state, quest_index, round_index, approvals)
-    
-    # If failures were provided, update fails
-    if 'failures' in data:
-        round_index = len(state['quests'][quest_index]['rounds']) - 1
-        state = ags.update_fails(state, quest_index, round_index, data['failures'])
-    
-    if not db.update_game_state(game_id, state):
-        return jsonify({'error': 'Invalid game state'}), 400
-        
-    return jsonify({
-        'message': 'Round added',
-        'questNumber': quest_number,
-        'roundNumber': len(state['quests'][quest_index]['rounds'])
-    }), 200
-
-# Note-related endpoints
-@app.route('/api/games/<game_id>/notes', methods=['POST'])
-def add_note(game_id):
-    data = request.get_json()
-    if not data or 'content' not in data:
-        return jsonify({'error': 'Missing content field'}), 400
-        
-    game = db.get_game(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-        
-    note_id = db.add_note(game_id, data['content'])
-    if not note_id:
-        return jsonify({'error': 'Failed to add note'}), 500
-        
-    return jsonify({'noteId': note_id}), 201
-
-@app.route('/api/games/<game_id>/notes', methods=['GET'])
-def get_game_notes(game_id):
-    game = db.get_game(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-        
-    notes = db.get_game_notes(game_id)
-    return jsonify({'notes': notes}), 200
-
-@app.route('/api/players', methods=['GET'])
-def get_all_players():
-    players = db.get_all_players()
-    return jsonify({'players': players}), 200
-
-@app.route('/api/games/<game_id>', methods=['GET'])
-def get_game_details(game_id):
-    game = db.get_game(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-    return jsonify(game), 200
-
-@app.route('/api/games', methods=['GET'])
-def get_all_games():
+@app.route('/api/games/get', methods=['GET'])
+def get_games():
     with db.get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM games")
@@ -361,6 +252,117 @@ def get_all_games():
         for game in games:
             game['state'] = json.loads(game['state'])
         return jsonify({'games': games}), 200
+
+@app.route('/api/games/<game_id>/get', methods=['GET'])
+def get_game_state(game_id):
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+    return jsonify(game), 200
+
+@app.route('/api/games/<game_id>/players/add', methods=['POST'])
+def add_game_player(game_id):
+    data = request.get_json()
+    if not data or 'alias' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    # Check if player exists
+    player = db.get_player(data['alias'])
+    if not player:
+        return jsonify({'error': 'Player not found'}), 404
+
+    state = game['state']
+
+    # Empty role; to be filled in at the end
+    state = ags.add_player(state, data['alias'], '')
+
+    if not db.update_game_state(game_id, state):
+        return jsonify({'error': 'Invalid game state'}), 400
+
+    return jsonify({'message': 'Player added to game'}), 200
+
+@app.route('/api/games/<game_id>/quests/add', methods=['POST'])
+def add_quest(game_id):
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    state = game['state']
+    state = ags.add_quest(state)
+
+    if not db.update_game_state(game_id, state):
+        return jsonify({'error': 'Invalid game state'}), 400
+
+    return jsonify({'message': 'Quest added', 'questNumber': len(state['quests'])}), 200
+
+@app.route('/api/games/<game_id>/quests/<int:quest_number>/rounds/add', methods=['POST'])
+def add_round(game_id, quest_number):
+    data = request.get_json()
+    if not data or 'team' not in data or 'king' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    quest_index = ags.quest_number_to_index(quest_number)
+    state = game['state']
+
+    # Add the round with the proposed team
+    state = ags.add_round(state, quest_index, data['team'], data['king'])
+    if state is None:
+        return jsonify({'error': 'Invalid quest number'}), 400
+
+    round_index = len(state['quests'][quest_index]['rounds']) - 1
+
+    # Update the round with approvals if provided and not empty
+    if 'approvals' in data:
+        # Filter out any empty strings from approvals list
+        approvals = [a for a in data['approvals'] if a]
+        state = ags.update_approvals(state, quest_index, round_index, approvals)
+
+    # If failures were provided, update fails
+    if 'failures' in data:
+        state = ags.update_fails(state, quest_index, round_index, data['failures'])
+
+    if not db.update_game_state(game_id, state):
+        return jsonify({'error': 'Invalid game state'}), 400
+
+    return jsonify({
+        'message': 'Round added',
+        'questNumber': quest_number,
+        'roundNumber': len(state['quests'][quest_index]['rounds'])
+    }), 200
+
+# Note-related endpoints
+@app.route('/api/games/<game_id>/notes/add', methods=['POST'])
+def add_note(game_id):
+    data = request.get_json()
+    if not data or 'content' not in data:
+        return jsonify({'error': 'Missing content field'}), 400
+
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    note_id = db.add_note(game_id, data['content'])
+    if not note_id:
+        return jsonify({'error': 'Failed to add note'}), 500
+
+    return jsonify({'noteId': note_id}), 201
+
+@app.route('/api/games/<game_id>/notes/get', methods=['GET'])
+def get_game_notes(game_id):
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    notes = db.get_game_notes(game_id)
+    return jsonify({'notes': notes}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
