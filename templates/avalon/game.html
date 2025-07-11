@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Avalon Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/avalon">Avalon</a>
+        </div>
+    </nav>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-3">Game Setup</h2>
+                <!-- Add Player Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5>Add Player</h5>
+                        <div class="mb-3">
+                            <div class="row mb-2 align-items-end">
+                                <div class="col-3">
+                                    <span class="btn btn-light disabled w-100 mb-0" style="pointer-events:none;background:none;border:none;box-shadow:none;">Choose player</span>
+                                </div>
+                                <div class="col-7">
+                                    <select id="player-select" class="form-select"></select>
+                                </div>
+                                <div class="col-2">
+                                    <button id="add-existing-btn" class="btn btn-primary w-100">Add</button>
+                                </div>
+                            </div>
+                            <div class="row align-items-end">
+                                <div class="col-3">
+                                    <span class="btn btn-light disabled w-100 mb-0" style="pointer-events:none;background:none;border:none;box-shadow:none;">New Player</span>
+                                </div>
+                                <div class="col-4">
+                                    <input type="text" id="new-player-name" class="form-control" placeholder="Name">
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" id="new-player-alias" class="form-control" placeholder="Alias">
+                                </div>
+                                <div class="col-2">
+                                    <button id="add-new-btn" class="btn btn-success w-100">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Players in Game -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5>Players in Game</h5>
+                        <div id="game-players" class="d-flex flex-wrap"></div>
+                    </div>
+                </div>
+                <!-- Start Game Button -->
+                <div class="d-flex justify-content-end">
+                    <button id="start-game-btn" class="btn btn-warning">Start Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Get gameId from URL
+    const gameId = window.location.pathname.split('/').pop();
+
+    // Fetch all players for dropdown
+    function loadPlayersDropdown() {
+        fetch('/api/players/get')
+            .then(r => r.json())
+            .then(data => {
+                fetch(`/api/games/${gameId}/get`)
+                    .then(r2 => r2.json())
+                    .then(game => {
+                        const gamePlayerAliases = (game.state && game.state.players) ? game.state.players.map(p => p.alias) : [];
+                        const select = document.getElementById('player-select');
+                        select.innerHTML = '';
+                        let availablePlayers = 0;
+                        (data.players || []).forEach(player => {
+                            if (!gamePlayerAliases.includes(player.alias)) {
+                                const opt = document.createElement('option');
+                                opt.value = player.alias;
+                                opt.textContent = player.name;
+                                select.appendChild(opt);
+                                availablePlayers++;
+                            }
+                        });
+                        if (availablePlayers === 0) {
+                            const opt = document.createElement('option');
+                            opt.value = '';
+                            opt.textContent = 'No other players found';
+                            opt.disabled = true;
+                            opt.selected = true;
+                            select.appendChild(opt);
+                        }
+                    });
+            });
+    }
+
+    // Fetch game state and render players
+    function loadGamePlayers() {
+        // Fetch all players for alias->name mapping
+        fetch('/api/players/get')
+            .then(r => r.json())
+            .then(playersData => {
+                const aliasToName = {};
+                (playersData.players || []).forEach(p => { aliasToName[p.alias] = p.name; });
+                fetch(`/api/games/${gameId}/get`)
+                    .then(r2 => r2.json())
+                    .then(game => {
+                        const players = (game.state && game.state.players) ? game.state.players : [];
+                        const container = document.getElementById('game-players');
+                        container.innerHTML = '';
+                        players.forEach(player => {
+                            const name = aliasToName[player.alias] || player.alias;
+                            const card = document.createElement('div');
+                            card.className = 'card me-2 mb-2';
+                            card.style.minWidth = '120px';
+                            card.innerHTML = `<div class='card-body p-2 d-flex justify-content-between align-items-center'>
+                                <span>${name}</span>
+                                <button class='btn btn-sm btn-outline-danger remove-player-btn' data-alias='${player.alias}' title='Remove'>&times;</button>
+                            </div>`;
+                            container.appendChild(card);
+                        });
+                    });
+            });
+    }
+
+    // Add existing player to game
+    document.getElementById('add-existing-btn').onclick = function() {
+        const alias = document.getElementById('player-select').value;
+        if (!alias) return;
+        fetch(`/api/games/${gameId}/players/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alias })
+        }).then(() => {
+            loadGamePlayers();
+            loadPlayersDropdown();
+        });
+    };
+
+    // Add new player to table and game
+    document.getElementById('add-new-btn').onclick = function() {
+        const name = document.getElementById('new-player-name').value.trim();
+        const alias = document.getElementById('new-player-alias').value.trim();
+        if (!name || !alias) return alert('Name and alias required');
+        // Check if alias already exists
+        fetch('/api/players/get')
+            .then(r => r.json())
+            .then(data => {
+                const exists = (data.players || []).some(p => p.alias === alias);
+                if (exists) {
+                    alert('A player with that alias already exists.');
+                    return;
+                }
+                // Add new player
+                fetch('/api/players/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, alias })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) return alert(data.error);
+                    // Add to game
+                    fetch(`/api/games/${gameId}/players/add`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ alias })
+                    }).then(() => {
+                        loadPlayersDropdown();
+                        loadGamePlayers();
+                    });
+                });
+            });
+    };
+
+    // Remove player from game
+    document.getElementById('game-players').onclick = function(e) {
+        if (e.target.classList.contains('remove-player-btn')) {
+            const alias = e.target.getAttribute('data-alias');
+            fetch(`/api/games/${gameId}/players/remove`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alias })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    loadPlayersDropdown();
+                    loadGamePlayers();
+                }
+            });
+        }
+    };
+
+    // Start game button (functionality TBD)
+    document.getElementById('start-game-btn').onclick = function() {
+        alert('Start game functionality not implemented yet');
+    };
+
+    // Initial load
+    loadPlayersDropdown();
+    loadGamePlayers();
+    </script>
+</body>
+</html>
