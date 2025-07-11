@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flasgger import Swagger
 
 import json
 import logging
@@ -7,221 +8,89 @@ import util.avalon_game_state as ags
 from util.avalon import AvalonDB
 
 logging.basicConfig(level=logging.DEBUG)
-logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
+
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec',
+            "route": '/apispec.json',
+            "rule_filter": lambda rule: True,  # Include all routes
+            "model_filter": lambda tag: True,  # Include all models
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/apidocs/"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Avalon Game Notes API",
+        "description": "This is the API for managing Avalon game notes and state.",
+        "version": "1.0.0"
+    },
+    "host": "127.0.0.1:5000",
+    "basePath": "/",
+    "schemes": ["http"]
+}
+
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
+
+
 db = AvalonDB()  # Using default production config
 
 @app.route('/')
 @app.route('/index')
 def index():
+    """
+    Home page
+    ---
+    responses:
+      200:
+        description: Render index.html
+    """
     return render_template('index.html')
 
-@app.route('/avalon')
+@app.route('/avalontester')
 def avalon():
-    return '''
-    <html>
-        <head>
-            <title>Avalon API Test</title>
-            <script>
-                async function makeRequest(url, method, data) {
-                    // Show request details
-                    const requestDetails = {
-                        url: url,
-                        method: method,
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: data
-                    };
-                    document.getElementById('request').textContent = JSON.stringify(requestDetails, null, 2);
-
-                    try {
-                        const response = await fetch(url, {
-                            method: method,
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: data ? JSON.stringify(data) : null
-                        });
-                        const result = await response.json();
-                        document.getElementById('response').textContent = JSON.stringify(result, null, 2);
-                    } catch (error) {
-                        document.getElementById('response').textContent = `Error: ${error.message}`;
-                    }
-                }
-
-                function addPlayer() {
-                    const alias = document.getElementById('playerAlias').value;
-                    const name = document.getElementById('playerName').value;
-                    makeRequest('/api/players', 'POST', { alias, name });
-                }
-
-                function createGame() {
-                    makeRequest('/api/games', 'POST');
-                }
-
-                function addPlayerToGame() {
-                    const gameId = document.getElementById('gameId').value;
-                    const alias = document.getElementById('gamePlayerAlias').value;
-                    const role = document.getElementById('playerRole').value;
-                    makeRequest(`/api/games/${gameId}/players`, 'POST', { alias, role });
-                }
-
-                function addQuest() {
-                    const gameId = document.getElementById('questGameId').value;
-                    makeRequest(`/api/games/${gameId}/quests`, 'POST');
-                }
-
-                function addRound() {
-                    const gameId = document.getElementById('roundGameId').value;
-                    const questNum = document.getElementById('questNumber').value;
-                    const king = document.getElementById('king').value;
-                    const team = document.getElementById('team').value.split(',').map(s => s.trim()).filter(s => s);
-                    // If the input is empty or contains only an empty string, use an empty array
-                    const approvals = document.getElementById('approvals').value.trim() 
-                        ? document.getElementById('approvals').value.split(',').map(s => s.trim()).filter(s => s)
-                        : [];
-                    const failures = parseInt(document.getElementById('failures').value) || 0;
-                    makeRequest(`/api/games/${gameId}/quests/${questNum}/rounds`, 'POST', 
-                        { team, king, approvals, failures });
-                }
-
-                function addNote() {
-                    const gameId = document.getElementById('noteGameId').value;
-                    const content = document.getElementById('noteContent').value;
-                    makeRequest(`/api/games/${gameId}/notes`, 'POST', { content });
-                }
-
-                function getNotes() {
-                    const gameId = document.getElementById('getNotesGameId').value;
-                    makeRequest(`/api/games/${gameId}/notes`, 'GET');
-                }
-
-                function getAllPlayers() {
-                    makeRequest('/api/players', 'GET');
-                }
-
-                function getAllGames() {
-                    makeRequest('/api/games', 'GET');
-                }
-
-                function getGameDetails() {
-                    const gameId = document.getElementById('getGameId').value;
-                    makeRequest(`/api/games/${gameId}`, 'GET');
-                }
-            </script>
-            <style>
-                .section { 
-                    margin: 20px; 
-                    padding: 10px; 
-                    border: 1px solid #ccc; 
-                }
-                .subsection { 
-                    margin: 10px 0; 
-                    padding: 5px;
-                    border-bottom: 1px solid #eee;
-                }
-                .code-block { 
-                    white-space: pre; 
-                    font-family: monospace;
-                    background-color: #f5f5f5;
-                    padding: 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    overflow-x: auto;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Avalon API Tester</h1>
-
-            <div class="section">
-                <h2>Add Player</h2>
-                <label>Alias: <input type="text" id="playerAlias"></label><br>
-                <label>Name: <input type="text" id="playerName"></label><br>
-                <button onclick="addPlayer()">Add Player</button>
-            </div>
-
-            <div class="section">
-                <h2>Create Game</h2>
-                <button onclick="createGame()">Create Game</button>
-            </div>
-
-            <div class="section">
-                <h2>Add Player to Game</h2>
-                <label>Game ID: <input type="text" id="gameId"></label><br>
-                <label>Alias: <input type="text" id="gamePlayerAlias"></label><br>
-                <label>Role: <input type="text" id="playerRole"></label><br>
-                <button onclick="addPlayerToGame()">Add Player to Game</button>
-            </div>
-
-            <div class="section">
-                <h2>Add Quest</h2>
-                <label>Game ID: <input type="text" id="questGameId"></label><br>
-                <button onclick="addQuest()">Add Quest</button>
-            </div>
-
-            <div class="section">
-                <h2>Add Round to Quest</h2>
-                <label>Game ID: <input type="text" id="roundGameId"></label><br>
-                <label>Quest Number: <input type="number" id="questNumber"></label><br>
-                <label>King (who's picking the team): <input type="text" id="king"></label><br>
-                <label>Team (comma-separated): <input type="text" id="team"></label><br>
-                <label>Approvals (comma-separated): <input type="text" id="approvals"></label><br>
-                <label>Failures: <input type="number" id="failures"></label><br>
-                <button onclick="addRound()">Add Round</button>
-            </div>
-
-            <div class="section">
-                <h2>Add Note</h2>
-                <label>Game ID: <input type="text" id="noteGameId"></label><br>
-                <label>Content: <textarea id="noteContent"></textarea></label><br>
-                <button onclick="addNote()">Add Note</button>
-            </div>
-
-            <div class="section">
-                <h2>Get Notes</h2>
-                <label>Game ID: <input type="text" id="getNotesGameId"></label><br>
-                <button onclick="getNotes()">Get Notes</button>
-            </div>
-
-            <div class="section">
-                <h2>View Database Contents</h2>
-                
-                <div class="subsection">
-                    <h3>Players</h3>
-                    <button onclick="getAllPlayers()">Get All Players</button>
-                </div>
-
-                <div class="subsection">
-                    <h3>Games</h3>
-                    <button onclick="getAllGames()">Get All Games</button>
-                </div>
-
-                <div class="subsection">
-                    <h3>Game Details</h3>
-                    <label>Game ID: <input type="text" id="getGameId"></label><br>
-                    <button onclick="getGameDetails()">Get Game Details</button>
-                </div>
-            </div>
-
-            <div class="section">
-    <h2>API Communication</h2>
-    <div class="subsection">
-        <h3>Request:</h3>
-        <pre id="request" class="code-block"></pre>
-    </div>
-    <div class="subsection">
-        <h3>Response:</h3>
-        <pre id="response" class="code-block"></pre>
-    </div>
-</div>
-        </body>
-    </html>
-    '''
+    """
+    Avalon API test page
+    ---
+    responses:
+      200:
+        description: Render avalon/index.html
+    """
+    return render_template('avalon/index.html')
 
 @app.route('/api/players/add', methods=['POST'])
 def add_player():
+    """
+    Add a new player
+    ---
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - alias
+            - name
+          properties:
+            alias:
+              type: string
+            name:
+              type: string
+    responses:
+      201:
+        description: Player added successfully
+      400:
+        description: Missing required fields
+      409:
+        description: Player already exists
+    """
     data = request.get_json()
     if not data or 'alias' not in data or 'name' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
@@ -234,27 +103,77 @@ def add_player():
 
 @app.route('/api/players/get', methods=['GET'])
 def get_players():
+    """
+    Get all players
+    ---
+    responses:
+      200:
+        description: List of all players
+        schema:
+          type: object
+          properties:
+            players:
+              type: array
+              items:
+                type: object
+    """
     players = db.get_all_players()
     return jsonify({'players': players}), 200
 
 @app.route('/api/games/create', methods=['POST'])
 def create_game():
+    """
+    Create a new game
+    ---
+    responses:
+      201:
+        description: Game created
+        schema:
+          type: object
+          properties:
+            gameId:
+              type: string
+    """
     game_id = db.create_game()
     return jsonify({'gameId': game_id}), 201
 
 @app.route('/api/games/get', methods=['GET'])
 def get_games():
-    with db.get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM games")
-        games = [dict(row) for row in cursor.fetchall()]
-        # Parse the JSON state for each game
-        for game in games:
-            game['state'] = json.loads(game['state'])
-        return jsonify({'games': games}), 200
+    """
+    Get all games
+    ---
+    responses:
+      200:
+        description: List of all games
+        schema:
+          type: object
+          properties:
+            games:
+              type: array
+              items:
+                type: object
+    """
+    games = db.get_games()
+    for game in games:
+        game['state'] = json.loads(game['state'])
+    return jsonify({'games': games}), 200
 
 @app.route('/api/games/<game_id>/get', methods=['GET'])
 def get_game_state(game_id):
+    """
+    Get game state by game ID
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Game state
+      404:
+        description: Game not found
+    """
     game = db.get_game_state(game_id)
     if not game:
         return jsonify({'error': 'Game not found'}), 404
@@ -262,6 +181,31 @@ def get_game_state(game_id):
 
 @app.route('/api/games/<game_id>/players/add', methods=['POST'])
 def add_game_player(game_id):
+    """
+    Add player to a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - alias
+          properties:
+            alias:
+              type: string
+    responses:
+      200:
+        description: Player added to game
+      400:
+        description: Missing required fields
+      404:
+        description: Game or player not found
+    """
     data = request.get_json()
     if not data or 'alias' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
@@ -287,6 +231,22 @@ def add_game_player(game_id):
 
 @app.route('/api/games/<game_id>/quests/add', methods=['POST'])
 def add_quest(game_id):
+    """
+    Add a quest to a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Quest added
+      404:
+        description: Game not found
+      400:
+        description: Invalid game state
+    """
     game = db.get_game_state(game_id)
     if not game:
         return jsonify({'error': 'Game not found'}), 404
@@ -301,6 +261,48 @@ def add_quest(game_id):
 
 @app.route('/api/games/<game_id>/quests/<int:quest_number>/rounds/add', methods=['POST'])
 def add_round(game_id, quest_number):
+    """
+    Add a round to a quest
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+      - in: path
+        name: quest_number
+        type: integer
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - team
+            - king
+          properties:
+            team:
+              type: array
+              items:
+                type: string
+            king:
+              type: string
+            approvals:
+              type: array
+              items:
+                type: string
+            failures:
+              type: array
+              items:
+                type: string
+    responses:
+      200:
+        description: Round added
+      400:
+        description: Missing required fields or invalid quest number/state
+      404:
+        description: Game not found
+    """
     data = request.get_json()
     if not data or 'team' not in data or 'king' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
@@ -341,6 +343,33 @@ def add_round(game_id, quest_number):
 # Note-related endpoints
 @app.route('/api/games/<game_id>/notes/add', methods=['POST'])
 def add_note(game_id):
+    """
+    Add a note to a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - content
+          properties:
+            content:
+              type: string
+    responses:
+      201:
+        description: Note added
+      400:
+        description: Missing content field
+      404:
+        description: Game not found
+      500:
+        description: Failed to add note
+    """
     data = request.get_json()
     if not data or 'content' not in data:
         return jsonify({'error': 'Missing content field'}), 400
@@ -357,6 +386,20 @@ def add_note(game_id):
 
 @app.route('/api/games/<game_id>/notes/get', methods=['GET'])
 def get_game_notes(game_id):
+    """
+    Get notes for a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: List of notes
+      404:
+        description: Game not found
+    """
     game = db.get_game_state(game_id)
     if not game:
         return jsonify({'error': 'Game not found'}), 404

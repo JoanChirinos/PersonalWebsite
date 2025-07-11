@@ -1,0 +1,242 @@
+<html lang="en">
+<head>
+    <title>Avalon API Test</title>
+    <script>
+        async function makeRequest(url, method, data) {
+            const requestDetails = {
+                url: url,
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: data
+            };
+            document.getElementById('request').textContent = JSON.stringify(requestDetails, null, 2);
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: data ? JSON.stringify(data) : null
+                });
+                const result = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function addPlayer() {
+            const alias = document.getElementById('playerAlias').value;
+            const name = document.getElementById('playerName').value;
+            makeRequest('/api/players/add', 'POST', {alias, name});
+        }
+
+        function createGame() {
+            makeRequest('/api/games/create', 'POST');
+        }
+
+        function addPlayerToGame() {
+            const gameId = document.getElementById('gameId').value;
+            const alias = document.getElementById('gamePlayerAlias').value;
+            // Role is not used in the API for adding a player to a game
+            makeRequest(`/api/games/${gameId}/players/add`, 'POST', {alias});
+        }
+
+        function addQuest() {
+            const gameId = document.getElementById('questGameId').value;
+            makeRequest(`/api/games/${gameId}/quests/add`, 'POST');
+        }
+
+        function addRound() {
+            const gameId = document.getElementById('roundGameId').value;
+            const questNum = document.getElementById('questNumber').value;
+            const king = document.getElementById('king').value;
+            const team = document.getElementById('team').value.split(',').map(s => s.trim()).filter(s => s);
+            const approvals = document.getElementById('approvals').value.trim()
+                ? document.getElementById('approvals').value.split(',').map(s => s.trim()).filter(s => s)
+                : [];
+            const failures = document.getElementById('failures').value.trim()
+                ? document.getElementById('failures').value.split(',').map(s => s.trim()).filter(s => s)
+                : [];
+            makeRequest(`/api/games/${gameId}/quests/${questNum}/rounds/add`, 'POST',
+                {team, king, approvals, failures});
+        }
+
+        function addNote() {
+            const gameId = document.getElementById('noteGameId').value;
+            const content = document.getElementById('noteContent').value;
+            makeRequest(`/api/games/${gameId}/notes/add`, 'POST', {content});
+        }
+
+        function getNotes() {
+            const gameId = document.getElementById('getNotesGameId').value;
+            makeRequest(`/api/games/${gameId}/notes/get`, 'GET');
+        }
+
+        function getAllPlayers() {
+            makeRequest('/api/players/get', 'GET');
+        }
+
+        function getAllGames() {
+            makeRequest('/api/games/get', 'GET');
+        }
+
+        function getGameDetails() {
+            const gameId = document.getElementById('getGameId').value;
+            makeRequest(`/api/games/${gameId}/get`, 'GET');
+        }
+
+        function removePlayerFromGame() {
+            const gameId = document.getElementById('removePlayerGameId').value;
+            const alias = document.getElementById('removePlayerAlias').value;
+            makeRequest(`/api/games/${gameId}/players/remove`, 'POST', {alias});
+        }
+
+        function removeQuest() {
+            const gameId = document.getElementById('removeQuestGameId').value;
+            const questNum = document.getElementById('removeQuestNumber').value;
+            makeRequest(`/api/games/${gameId}/quests/${questNum}/remove`, 'POST');
+        }
+
+        function removeRound() {
+            const gameId = document.getElementById('removeRoundGameId').value;
+            const questNum = document.getElementById('removeRoundQuestNumber').value;
+            const roundNum = document.getElementById('removeRoundNumber').value;
+            makeRequest(`/api/games/${gameId}/quests/${questNum}/rounds/${roundNum}/remove`, 'POST');
+        }
+    </script>
+    <style>
+        .section {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .subsection {
+            margin: 10px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .code-block {
+            white-space: pre;
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+<h1>Avalon API Tester</h1>
+
+<div class="section">
+    <h2>Add Player</h2>
+    <label>Alias: <input type="text" id="playerAlias"></label><br>
+    <label>Name: <input type="text" id="playerName"></label><br>
+    <button onclick="addPlayer()">Add Player</button>
+</div>
+
+<div class="section">
+    <h2>Create Game</h2>
+    <button onclick="createGame()">Create Game</button>
+</div>
+
+<div class="section">
+    <h2>Add Player to Game</h2>
+    <label>Game ID: <input type="text" id="gameId"></label><br>
+    <label>Alias: <input type="text" id="gamePlayerAlias"></label><br>
+    <button onclick="addPlayerToGame()">Add Player to Game</button>
+</div>
+
+<div class="section">
+    <h2>Remove Player from Game</h2>
+    <label>Game ID: <input type="text" id="removePlayerGameId"></label><br>
+    <label>Alias: <input type="text" id="removePlayerAlias"></label><br>
+    <button onclick="removePlayerFromGame()">Remove Player from Game</button>
+</div>
+
+<div class="section">
+    <h2>Add Quest</h2>
+    <label>Game ID: <input type="text" id="questGameId"></label><br>
+    <button onclick="addQuest()">Add Quest</button>
+</div>
+
+<div class="section">
+    <h2>Remove Quest</h2>
+    <label>Game ID: <input type="text" id="removeQuestGameId"></label><br>
+    <label>Quest Number: <input type="number" id="removeQuestNumber"></label><br>
+    <button onclick="removeQuest()">Remove Quest</button>
+</div>
+
+<div class="section">
+    <h2>Add Round to Quest</h2>
+    <label>Game ID: <input type="text" id="roundGameId"></label><br>
+    <label>Quest Number: <input type="number" id="questNumber"></label><br>
+    <label>King (who's picking the team): <input type="text" id="king"></label><br>
+    <label>Team (comma-separated): <input type="text" id="team"></label><br>
+    <label>Approvals (comma-separated): <input type="text" id="approvals"></label><br>
+    <label>Failures: <input type="number" id="failures"></label><br>
+    <button onclick="addRound()">Add Round</button>
+</div>
+
+<div class="section">
+    <h2>Remove Round from Quest</h2>
+    <label>Game ID: <input type="text" id="removeRoundGameId"></label><br>
+    <label>Quest Number: <input type="number" id="removeRoundQuestNumber"></label><br>
+    <label>Round Number: <input type="number" id="removeRoundNumber"></label><br>
+    <button onclick="removeRound()">Remove Round</button>
+</div>
+
+<div class="section">
+    <h2>Add Note</h2>
+    <label>Game ID: <input type="text" id="noteGameId"></label><br>
+    <label>Content: <textarea id="noteContent"></textarea></label><br>
+    <button onclick="addNote()">Add Note</button>
+</div>
+
+<div class="section">
+    <h2>Get Notes</h2>
+    <label>Game ID: <input type="text" id="getNotesGameId"></label><br>
+    <button onclick="getNotes()">Get Notes</button>
+</div>
+
+<div class="section">
+    <h2>View Database Contents</h2>
+
+    <div class="subsection">
+        <h3>Players</h3>
+        <button onclick="getAllPlayers()">Get All Players</button>
+    </div>
+
+    <div class="subsection">
+        <h3>Games</h3>
+        <button onclick="getAllGames()">Get All Games</button>
+    </div>
+
+    <div class="subsection">
+        <h3>Game Details</h3>
+        <label>Game ID: <input type="text" id="getGameId"></label><br>
+        <button onclick="getGameDetails()">Get Game Details</button>
+    </div>
+</div>
+
+<div class="section">
+    <h2>API Communication</h2>
+    <div class="subsection">
+        <h3>Request:</h3>
+        <pre id="request" class="code-block"></pre>
+    </div>
+    <div class="subsection">
+        <h3>Response:</h3>
+        <pre id="response" class="code-block"></pre>
+    </div>
+</div>
+
+</body>
+</html>

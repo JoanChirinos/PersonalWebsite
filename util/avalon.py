@@ -3,7 +3,7 @@ import sqlite3
 import json
 import uuid
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from contextlib import contextmanager
 import datetime
 from pathlib import Path
@@ -118,6 +118,13 @@ class AvalonDB:
             )
             conn.commit()
         return game_id
+
+    def get_games(self) -> list[dict[str, str]]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM games")
+            games = [dict(row) for row in cursor.fetchall()]
+            return games
 
     def get_game_state(self, game_id: str) -> Optional[Dict]:
         """Get game by ID"""
