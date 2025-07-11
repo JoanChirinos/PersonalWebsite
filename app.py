@@ -568,7 +568,7 @@ def start_game(game_id):
     return jsonify({'message': 'Game started'}), 200
 
 @app.route('/api/games/<game_id>/end', methods=['POST'])
-def start_game(game_id):
+def end_game(game_id):
     """
     Set game as active (started) and start first quest
     ---
