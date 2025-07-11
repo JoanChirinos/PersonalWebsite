@@ -321,6 +321,25 @@ def add_game_player(game_id):
 
     return jsonify({'message': 'Player added to game'}), 200
 
+@app.route('/api/games/<game_id>/players/addlatest', methods=['POST'])
+def add_latest_game_player(game_id):
+    player = db.get_player(db.get_next_player_id() - 1)
+    if not player:
+        return jsonify({'error': 'Player not found'}), 404
+    player_id = player['player_id']
+
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    state = game['state']
+
+    state = ags.add_player(state, player_id, '')
+
+    if not db.update_game_state(game_id, state):
+        return jsonify({'error', 'Invalid game state'}), 400
+    return jsonify({'message': 'Player added to game', 'player_id': player_id}), 200 
+
 @app.route('/api/games/<game_id>/players/remove', methods=['POST'])
 def remove_game_player(game_id):
     """
