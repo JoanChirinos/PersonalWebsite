@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Avalon Home</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Avalon</a>
+        </div>
+    </nav>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="mb-0">Active Games</h2>
+                    <button id="new-game-btn" class="btn btn-success">New Game</button>
+                </div>
+                <div id="games-list">
+                    <div id="games-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.getElementById('new-game-btn').onclick = function() {
+      fetch('/api/games/create', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.gameId) {
+            window.location.href = `/avalon/${data.gameId}`;
+          } else {
+            alert('Failed to create game.');
+          }
+        })
+        .catch(() => alert('Failed to create game.'));
+    };
+    // Fetch all players once for name mapping
+    let playerNameMap = {};
+    fetch('/api/players/get')
+      .then(response => response.json())
+      .then(data => {
+        (data.players || []).forEach(player => {
+          playerNameMap[player.alias] = player.name;
+        });
+        // Now fetch games
+        return fetch('/api/games/get');
+      })
+      .then(response => response.json())
+      .then(data => {
+        const games = data.games || [];
+        const container = document.getElementById('games-container');
+        if (games.length === 0) {
+          container.innerHTML = '<p class="text-muted">No games found.</p>';
+          return;
+        }
+        games.forEach(game => {
+          const players = (game.state && game.state.players) ? game.state.players : [];
+          const playerNames = players.map(p => playerNameMap[p.alias] || p.alias);
+          const playerList = playerNames.map(name => `<span class='badge bg-primary me-1 mb-1' style='font-size:1rem;'>${name}</span>`).join(' ');
+          // Format start_time for display
+          let startTime = '';
+          if (game.start_time) {
+            const dateObj = new Date(game.start_time);
+            startTime = dateObj.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+          }
+          const card = `
+            <a href='/avalon/${game.gameId}' style='text-decoration:none;'>
+              <div class="card mb-3 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span>Started: <strong>${startTime || 'Unknown'}</strong></span>
+                  <span class="badge bg-secondary">${playerNames.length} Players</span>
+                </div>
+                <div class="card-body py-2">
+                  <div class="d-flex flex-wrap align-items-center">${playerList || '<span class=\'text-muted\'>No players yet</span>'}</div>
+                </div>
+              </div>
+            </a>
+          `;
+          container.innerHTML += card;
+        });
+      })
+      .catch(err => {
+        document.getElementById('games-container').innerHTML = '<p class="text-danger">Failed to load games.</p>';
+      });
+    </script>
+</body>
+</html>

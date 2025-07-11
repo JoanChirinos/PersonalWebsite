@@ -54,8 +54,19 @@ def index():
     """
     return render_template('index.html')
 
-@app.route('/avalontester')
+@app.route('/avalon')
 def avalon():
+    """
+    Avalon page
+    ---
+    responses:
+      200:
+        description: Render avalon/apitest.html
+    """
+    return render_template('avalon/index.html')
+
+@app.route('/avalontester')
+def avalon_tester():
     """
     Avalon API test page
     ---
@@ -64,6 +75,22 @@ def avalon():
         description: Render avalon/apitest.html
     """
     return render_template('avalon/apitest.html')
+
+@app.route('/avalon/<game_id>')
+def avalon_game(game_id):
+    """
+    Avalon game setup page
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Render avalon/game.html
+    """
+    return render_template('avalon/game.html')
 
 @app.route('/api/players/add', methods=['POST'])
 def add_player():
@@ -228,6 +255,51 @@ def add_game_player(game_id):
         return jsonify({'error': 'Invalid game state'}), 400
 
     return jsonify({'message': 'Player added to game'}), 200
+
+@app.route('/api/games/<game_id>/players/remove', methods=['POST'])
+def remove_game_player(game_id):
+    """
+    Remove player from a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - alias
+          properties:
+            alias:
+              type: string
+    responses:
+      200:
+        description: Player removed from game
+      400:
+        description: Missing required fields or invalid game state
+      404:
+        description: Game not found
+    """
+    data = request.get_json()
+    if not data or 'alias' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    game = db.get_game_state(game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
+    state = game['state']
+    new_state = ags.remove_player(state, data['alias'])
+    if new_state is None:
+        return jsonify({'error': 'Player not in game'}), 400
+
+    if not db.update_game_state(game_id, new_state):
+        return jsonify({'error': 'Invalid game state'}), 400
+
+    return jsonify({'message': 'Player removed from game'}), 200
 
 @app.route('/api/games/<game_id>/quests/add', methods=['POST'])
 def add_quest(game_id):

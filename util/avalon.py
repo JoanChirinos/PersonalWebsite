@@ -58,7 +58,8 @@ class AvalonDB:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS games (
                     gameId TEXT PRIMARY KEY,
-                    state TEXT NOT NULL  -- JSON stored as TEXT
+                    state TEXT NOT NULL,  -- JSON stored as TEXT
+                    start_time TEXT NOT NULL
                 )
             """)
 
@@ -109,12 +110,12 @@ class AvalonDB:
         """Create a new game with initial state and return its ID"""
         game_id = str(uuid.uuid4())
         initial_state = ags.create_initial_game_state()
-        
+        start_time = datetime.datetime.now(datetime.UTC).isoformat()
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO games (gameId, state) VALUES (?, ?)",
-                (game_id, json.dumps(initial_state))
+                "INSERT INTO games (gameId, state, start_time) VALUES (?, ?, ?)",
+                (game_id, json.dumps(initial_state), start_time)
             )
             conn.commit()
         return game_id
@@ -122,7 +123,7 @@ class AvalonDB:
     def get_games(self) -> list[dict[str, str]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM games")
+            cursor.execute("SELECT * FROM games ORDER BY start_time DESC")
             games = [dict(row) for row in cursor.fetchall()]
             return games
 
