@@ -51,7 +51,8 @@ class AvalonDB:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS players (
                     alias TEXT PRIMARY KEY,
-                    name TEXT NOT NULL
+                    name TEXT NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 1
                 )
             """)
 
@@ -59,7 +60,8 @@ class AvalonDB:
                 CREATE TABLE IF NOT EXISTS games (
                     gameId TEXT PRIMARY KEY,
                     state TEXT NOT NULL,  -- JSON stored as TEXT
-                    start_time TEXT NOT NULL
+                    start_time TEXT NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 0
                 )
             """)
 
@@ -82,13 +84,31 @@ class AvalonDB:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "INSERT INTO players (alias, name) VALUES (?, ?)",
+                    "INSERT INTO players (alias, name, active) VALUES (?, ?, 1)",
                     (alias, name)
                 )
                 conn.commit()
                 return True
         except sqlite3.IntegrityError:
             return False
+
+    def set_player_active(self, alias: str, active: bool) -> bool:
+        """Set the active status of a player"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE players SET active = ? WHERE alias = ?",
+                (1 if active else 0, alias)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_active_players(self) -> List[Dict]:
+        """Get all active players"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM players WHERE active = 1")
+            return [dict(row) for row in cursor.fetchall()]
 
     def get_player(self, alias: str) -> Optional[Dict]:
         """Get player by alias"""
@@ -105,6 +125,17 @@ class AvalonDB:
             cursor.execute("SELECT * FROM players")
             return [dict(row) for row in cursor.fetchall()]
 
+    def update_player_name(self, alias: str, name: str) -> bool:
+        """Update a player's name by alias"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE players SET name = ? WHERE alias = ?",
+                (name, alias)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
     # Game operations
     def create_game(self) -> str:
         """Create a new game with initial state and return its ID"""
@@ -114,11 +145,22 @@ class AvalonDB:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO games (gameId, state, start_time) VALUES (?, ?, ?)",
+                "INSERT INTO games (gameId, state, start_time, active) VALUES (?, ?, ?, 0)",
                 (game_id, json.dumps(initial_state), start_time)
             )
             conn.commit()
         return game_id
+
+    def set_game_active_status(self, game_id: str, active_status: int) -> bool:
+        """Set the active status of a game"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE games SET active = ? WHERE gameId = ?",
+                (active_status, game_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
 
     def get_games(self) -> list[dict[str, str]]:
         with self.get_connection() as conn:

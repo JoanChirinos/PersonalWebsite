@@ -92,6 +92,17 @@ def avalon_game(game_id):
     """
     return render_template('avalon/game.html')
 
+@app.route('/avalon/players')
+def avalon_players():
+    """
+    Avalon Players management page
+    ---
+    responses:
+      200:
+        description: Render avalon/players.html
+    """
+    return render_template('avalon/players.html')
+
 @app.route('/api/players/add', methods=['POST'])
 def add_player():
     """
@@ -146,6 +157,59 @@ def get_players():
     """
     players = db.get_all_players()
     return jsonify({'players': players}), 200
+
+@app.route('/api/players/get_active', methods=['GET'])
+def get_active_players():
+    """
+    Get all active players
+    ---
+    responses:
+      200:
+        description: List of active players
+        schema:
+          type: object
+          properties:
+            players:
+              type: array
+              items:
+                type: object
+    """
+    players = db.get_active_players()
+    return jsonify({'players': players}), 200
+
+@app.route('/api/players/set_active', methods=['POST'])
+def set_player_active():
+    """
+    Set a player's active status
+    ---
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - alias
+            - active
+          properties:
+            alias:
+              type: string
+            active:
+              type: boolean
+    responses:
+      200:
+        description: Player status updated
+      400:
+        description: Missing required fields
+      404:
+        description: Player not found
+    """
+    data = request.get_json()
+    if not data or 'alias' not in data or 'active' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+    success = db.set_player_active(data['alias'], data['active'])
+    if not success:
+        return jsonify({'error': 'Player not found'}), 404
+    return jsonify({'message': 'Player status updated'}), 200
 
 @app.route('/api/games/create', methods=['POST'])
 def create_game():
@@ -478,6 +542,85 @@ def get_game_notes(game_id):
 
     notes = db.get_game_notes(game_id)
     return jsonify({'notes': notes}), 200
+
+@app.route('/api/games/<game_id>/start', methods=['POST'])
+def start_game(game_id):
+    """
+    Set game as active (started) and start first quest
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Game started
+      404:
+        description: Game not found
+    """
+    success = db.set_game_active_status(game_id, 1)
+    if not success:
+        return jsonify({'error': 'Game not found'}), 404
+    response, status = add_quest(game_id)
+    if response != 200:
+        return response, status
+    return jsonify({'message': 'Game started'}), 200
+
+@app.route('/api/games/<game_id>/end', methods=['POST'])
+def start_game(game_id):
+    """
+    Set game as active (started) and start first quest
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Game started
+      404:
+        description: Game not found
+    """
+    success = db.set_game_active_status(game_id, 2)
+    if not success:
+        return jsonify({'error': 'Game not found'}), 404
+    return jsonify({'message': 'Game ended'}), 200
+
+@app.route('/api/players/update_name', methods=['POST'])
+def update_player_name():
+    """
+    Update a player's name
+    ---
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - alias
+            - name
+          properties:
+            alias:
+              type: string
+            name:
+              type: string
+    responses:
+      200:
+        description: Player name updated
+      400:
+        description: Missing required fields
+      404:
+        description: Player not found
+    """
+    data = request.get_json()
+    if not data or 'alias' not in data or 'name' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+    success = db.update_player_name(data['alias'], data['name'])
+    if not success:
+        return jsonify({'error': 'Player not found'}), 404
+    return jsonify({'message': 'Player name updated'}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
