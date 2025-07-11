@@ -50,7 +50,7 @@ def index():
     ---
     responses:
       200:
-        description: Render index.html
+        description: Render apitest.html
     """
     return render_template('index.html')
 
@@ -61,9 +61,9 @@ def avalon():
     ---
     responses:
       200:
-        description: Render avalon/index.html
+        description: Render avalon/apitest.html
     """
-    return render_template('avalon/index.html')
+    return render_template('avalon/apitest.html')
 
 @app.route('/api/players/add', methods=['POST'])
 def add_player():
