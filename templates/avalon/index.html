@@ -51,7 +51,7 @@
       .then(response => response.json())
       .then(data => {
         (data.players || []).forEach(player => {
-          playerNameMap[player.alias] = player.name;
+          playerNameMap[player.player_id] = player.name;
         });
         // Now fetch games
         return fetch('/api/games/get');
@@ -66,7 +66,7 @@
         }
         games.forEach(game => {
           const players = (game.state && game.state.players) ? game.state.players : [];
-          const playerNames = players.map(p => playerNameMap[p.alias] || p.alias);
+          const playerNames = players.map(p => playerNameMap[p.player_id] || p.player_id);
           const playerList = playerNames.map(name => `<span class='badge bg-primary me-1 mb-1' style='font-size:1rem;'>${name}</span>`).join(' ');
           // Format start_time for display
           let startTime = '';
