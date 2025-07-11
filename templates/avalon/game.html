@@ -127,8 +127,6 @@
                                     body: JSON.stringify({name})
                                 })
                                     .then(() => {
-                                        console.log('data', data);
-                                        const player_id = data.players[data.players.length - 1].player_id;
                                         fetch(`/api/games/${gameId}/players/addlatest`, {
                                             method: 'POST',
                                             headers: {'Content-Type': 'application/json'},
