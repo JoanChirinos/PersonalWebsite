@@ -324,11 +324,11 @@
             console.log(gamePlayers);
             console.log(playersData);
             // Only show players not already in the game
-            (playersData.players || []).forEach(p => {
+            (playersData.players.sort((a, b) => a.name > b.name) || []).forEach(p => {
                 if (p.active === 1 && !gamePlayers.includes(p.player_id)) {
                     const option = document.createElement('option');
                     option.value = p.player_id;
-                    option.textContent = `${p.name} (${p.player_id})`;
+                    option.textContent = `${p.name}`;
                     select.appendChild(option);
                 }
             });
