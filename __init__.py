@@ -9,6 +9,7 @@ from util.avalon import AvalonDB
 
 logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
+APP_IS_DEBUG = True
 
 swagger_config = {
     "headers": [],
@@ -32,7 +33,7 @@ swagger_template = {
         "description": "This is the API for managing Avalon game notes and state.",
         "version": "1.0.0"
     },
-    "host": "127.0.0.1:5000",
+    "host": "127.0.0.1:8000" if APP_IS_DEBUG else "joanchirinos.com",
     "basePath": "/",
     "schemes": ["http"]
 }
@@ -648,4 +649,4 @@ def update_player_name():
     return jsonify({'message': 'Player name updated'}), 200
 
 if __name__ == '__main__':
-    app.run(port=8000, debug=True)
+    app.run(port=8000, debug=APP_IS_DEBUG)
