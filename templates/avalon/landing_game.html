@@ -1,0 +1,17 @@
+<a href="/avalon/{{ game_id }}" style="text-decoration:none;">
+    <div class="card mb-3 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Started: <strong>{{ start_time }}</strong></span>
+            <span class="badge bg-secondary">{{ players|length }} Players</span>
+        </div>
+        <div class="card-body py-2">
+            {% if players|length > 0 %}
+            <div class="d-flex flex-wrap align-items-center"><span class="text-muted">No players yet</span></div>
+            {% else %}
+            {% for player in players %}
+                <span class='badge bg-primary me-1 mb-1' style='font-size:1rem;'>{{ player }}</span>
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</a>

@@ -178,7 +178,14 @@ class AvalonDB:
             games = [dict(row) for row in cursor.fetchall()]
             return games
 
-    def get_game_state(self, game_id: str) -> Optional[Dict]:
+    def get_game(self, game_id) -> dict[str, str]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM games WHERE gameId = ?", (game_id,))
+            game = dict(cursor.fetchone())
+            return game
+
+    def get_game_state(self, game_id: str) -> Optional[ags.GameState]:
         """Get game by ID"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -187,7 +194,7 @@ class AvalonDB:
             if result:
                 row = dict(result)
                 row['state'] = json.loads(row['state'])
-                return row
+                return row['state']
             return None
 
     def update_game_state(self, game_id: str, new_state: ags.GameState) -> tuple[bool, Optional[str]]:
@@ -220,6 +227,41 @@ class AvalonDB:
                 return (cursor.rowcount > 0, None)
         except sqlite3.Error as e:
             return False, f"Database error: {str(e)}"
+
+    def get_round(self, game_id: str, quest_number: int, round_number: int) -> ags.Round:
+        game_state = self.get_game_state(game_id)
+        quest = ags.get_quest(game_state, quest_number)
+        round = ags.get_round(quest, round_number)
+        return round
+
+    def remove_round(self, game_id: str, quest_number: int, round_number: int) -> tuple[bool, str | None]:
+        """Remove a round from a quest"""
+        game_state = self.get_game_state(game_id)
+
+        new_state = ags.remove_round(game_state, quest_number - 1, round_number - 1)
+        return db.update_game_state(game_id, new_state)
+
+    def get_quest_count(self, game_id: str) -> int:
+        """Get the number of quests in a game"""
+        game_state = self.get_game_state(game_id)
+        return len(game_state['quests']) if game_state else 0
+
+    def get_round_count(self, game_id: str, quest_number: int) -> int:
+        """Get the number of rounds in a quest"""
+        game_state = self.get_game_state(game_id)
+        quest = ags.get_quest(game_state, quest_number)
+        return len(quest['rounds']) if quest else 0
+
+    def round_approved(self, game_id: str, quest_number: int, round_number: int) -> bool:
+        """Check if a round is approved"""
+        game_state = self.get_game_state(game_id)
+        quest = ags.get_quest(game_state, quest_number)
+        round = ags.get_round(quest, round_number)
+        return ags.round_approved(game_state, round)
+
+    def get_reabable_player_list_from_ids(self, player_ids: List[int]) -> str:
+        """Convert a list of player IDs to a readable string"""
+        return ", ".join([self.get_player(player_id)['name'] for player_id in player_ids])
 
     # Note operations
     def add_note(self, game_id: str, content: str) -> Optional[str]:

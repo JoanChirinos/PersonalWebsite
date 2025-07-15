@@ -1,0 +1,43 @@
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="mb-3">Game Setup</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5>Add Player</h5>
+                <div class="mb-3">
+                    <div class="row mb-2 align-items-end">
+                        <div class="col-3">
+                            <span class="btn btn-light disabled w-100 mb-0" style="pointer-events:none;background:none;border:none;box-shadow:none;">Choose player</span>
+                        </div>
+                        <div class="col-7">
+                            <select id="player-select" class="form-select"></select>
+                        </div>
+                        <div class="col-2">
+                            <button id="add-existing-btn" class="btn btn-primary w-100">Add</button>
+                        </div>
+                    </div>
+                    <div class="row align-items-end">
+                        <div class="col-3">
+                            <span class="btn btn-light disabled w-100 mb-0" style="pointer-events:none;background:none;border:none;box-shadow:none;">New Player</span>
+                        </div>
+                        <div class="col-7">
+                            <input type="text" id="new-player-name" class="form-control" placeholder="Name">
+                        </div>
+                        <div class="col-2">
+                            <button id="add-new-btn" class="btn btn-success w-100">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5>Players in Game</h5>
+                <div id="game-players" class="d-flex flex-wrap"></div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end">
+            <button id="start-game-btn" class="btn btn-warning">Start Game</button>
+        </div>
+    </div>
+</div>

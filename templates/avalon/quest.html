@@ -1,0 +1,12 @@
+<div class="col-sm-6 mb-2">
+    <div class="card">
+        <div class="card-header bg-primary text-white"> Quest {{ quest_number }}</div>
+        <div class="card-body">
+            {% for round_number in range(1, round_count + 1) %}
+                <div hx-get="/avalon/{{ game_id }}/render/round/{{ quest_number }}/{{ round_number }}"
+                     hx-trigger="load, every 5s">
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

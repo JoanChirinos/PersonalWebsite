@@ -3,6 +3,8 @@ from flasgger import Swagger
 
 import json
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import util.avalon_game_state as ags
 from util.avalon import AvalonDB
@@ -55,16 +57,16 @@ def index():
     """
     return render_template('index.html')
 
-@app.route('/avalon')
-def avalon():
-    """
-    Avalon page
-    ---
-    responses:
-      200:
-        description: Render avalon/apitest.html
-    """
-    return render_template('avalon/index.html')
+# @app.route('/avalon')
+# def avalon():
+#     """
+#     Avalon page
+#     ---
+#     responses:
+#       200:
+#         description: Render avalon/apitest.html
+#     """
+#     return render_template('avalon/index.html')
 
 @app.route('/avalontester')
 def avalon_tester():
@@ -91,7 +93,156 @@ def avalon_game(game_id):
       200:
         description: Render avalon/game.html
     """
-    return render_template('avalon/game.html')
+    return render_template('avalon/game.html', game_id=game_id)
+
+@app.route('/avalonold/<game_id>')
+def avalon_game_old(game_id):
+    """
+    Avalon game setup page
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Render avalon/game.html
+    """
+    return render_template('avalon/game_old.html', game_id=game_id)
+
+@app.route('/avalon')
+def render_landing_games():
+    """
+    Render the landing page with all games
+    ---
+    responses:
+      200:
+        description: Render avalon/landing.html with the list of games
+    """
+    games = db.get_games()
+    print(games)
+    kwargs = {
+        'games': games,
+    }
+    return render_template('avalon/landing.html', **kwargs), 200
+
+@app.route('/avalon/render/landing/game/<game_id>')
+def render_landing_game(game_id):
+    game = db.get_game(game_id)
+    state = db.get_game_state(game_id)
+    players = [db.get_player(player_id)['name'] for player_id in state['players']]
+    start_time = datetime.fromisoformat(game['start_time'])
+    eastern_time = start_time.astimezone(ZoneInfo('America/New_York'))
+    formatted = eastern_time.strftime('%b %d, %Y, %I:%M %p')
+    kwargs = {
+        'game_id': game_id,
+        'start_time': formatted,
+        'players': players,
+    }
+    return render_template('avalon/landing_game.html', **kwargs), 200
+
+@app.route('/avalon/<game_id>/render/quests')
+def render_quests(game_id):
+    """
+    Render all quests in a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Render avalon/quests.html with the list of quests
+    """
+    quest_count = db.get_quest_count(game_id)
+    quests = []
+    for quest_number in range(1, quest_count + 1):
+        quest, status = render_quest(game_id, quest_number)
+        if status == 200:
+            quests.append(quest)
+    kwargs = {
+        'quests': quests,
+    }
+    return render_template('avalon/quests.html', **kwargs), 200
+
+
+@app.route('/avalon/<game_id>/render/quest/<quest_number>')
+def render_quest(game_id, quest_number):
+    """
+    Render a specific quest in a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+      - in: path
+        name: quest_number
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Render avalon/quest.html with the specified quest number
+    """
+    quest_id = int(quest_number) - 1
+    round_count = db.get_round_count(game_id, quest_id)
+
+    kwargs = {
+        'game_id': game_id,
+        'quest_number': quest_number,
+        'round_count': round_count,
+    }
+    return render_template('/avalon/quest.html', **kwargs), 200
+    # rounds = []
+    # for round_number in range(1, round_count + 1):
+    #     round, status = render_round(game_id, quest_number, round_number)
+    #     if status == 200:
+    #         rounds.append(round)
+    # kwargs = {
+    #     'quest_number': quest_number,
+    #     'rounds': rounds,
+    # }
+    # return render_template('avalon/quest.html', **kwargs), 200
+
+@app.route('/avalon/<game_id>/render/round/<quest_number>/<round_number>')
+def render_round(game_id, quest_number, round_number):
+    """
+    Render a specific quest in a game
+    ---
+    parameters:
+      - in: path
+        name: game_id
+        type: string
+        required: true
+      - in: path
+        name: quest_number
+        type: integer
+        required: true
+      - in: path
+        name: round_number
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Render avalon/round.html with the specified round number
+    """
+    quest_id = int(quest_number) - 1
+    round_id = int(round_number) - 1
+    round = db.get_round(game_id, quest_id, round_id)
+
+    kwargs = {
+        'round_number': round_number,
+        'king': db.get_player(round['king'])['name'],
+        'team': db.get_reabable_player_list_from_ids(round['team']),
+        'approvals': db.get_reabable_player_list_from_ids(round['approvals']),
+        'approved': db.round_approved(game_id, quest_id, round_id),
+        'fails': round['fails'],
+    }
+    if not round:
+        return jsonify({'error': 'Round not found'}), 404
+    return render_template('avalon/round.html', **kwargs), 200
 
 @app.route('/avalon/players')
 def avalon_players():

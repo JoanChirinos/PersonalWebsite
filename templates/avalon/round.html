@@ -1,0 +1,17 @@
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Round {{ round_number }}</span>
+        <span>
+            <button type="button" class="btn btn-sm btn-warning">Edit</button>
+            <button type="button" class="btn btn-sm btn-danger">Remove</button>
+        </span>
+    </div>
+    <div class="card-body">
+        <div><strong>King:</strong> {{ king }}</div>
+        <div><strong>Team:</strong> {{ team }}</div>
+        <div><strong>Approved by:</strong> {{ approvals }}</div>
+        {%  if approved %}
+        <div><strong>Failures:</strong> {{ fails }}</div>
+        {%  endif %}
+    </div>
+</div>
