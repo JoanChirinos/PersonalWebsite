@@ -188,6 +188,8 @@
                 let timerRemaining = 0;
                 let timerPaused = false;
 
+                let ctx = null;
+
                 function updateTimerDisplay() {
                     const min = Math.floor(timerRemaining / 60);
                     const sec = timerRemaining % 60;
@@ -205,6 +207,7 @@
 
                 function startTimer() {
                     setTimer();
+                    ctx = new AudioContext();
                     if (timerInterval) return;
                     timerPaused = false;
                     timerInterval = setInterval(() => {
@@ -214,7 +217,16 @@
                             if (timerRemaining === 0) {
                                 clearInterval(timerInterval);
                                 timerInterval = null;
-                                alert('Time is up!');
+                                const oscillator = ctx.createOscillator();
+                                oscillator.type = 'sine';
+                                oscillator.frequency.setValueAtTime(500, ctx.currentTime); // 1000 Hz beep
+                                oscillator.connect(ctx.destination);
+                                oscillator.start();
+                                setTimeout(() => {
+                                    oscillator.stop();
+                                    ctx.close();
+                                    alert('Time is up!');
+                                }, 750);
                             }
                         }
                     }, 1000);
