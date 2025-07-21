@@ -304,13 +304,13 @@
                     const selectedKing = players[randomIndex];
                     document.querySelectorAll('#king-select .selectable-card').forEach(c => c.classList.remove('bg-info'));
                     selectedKing.classList.add('bg-info');
-                }
+                };
 
                 document.getElementById('random-team-btn').onclick = function () {
                     const players = Array.from(document.querySelectorAll('#team-select .selectable-card'));
                     players.forEach(card => card.classList.remove('bg-info'));
                     if (players.length === 0) return alert('No players available');
-                    // Randomly select 3 players for the team
+                    // Randomly select players for the team including the king if selected
                     const selectedPlayers = [];
                     const king = document.querySelector('#king-select .bg-info');
                     if (king) {
@@ -328,7 +328,7 @@
                             playerCard.classList.add('bg-info');
                         }
                     }
-                }
+                };
 // Finish quest button
                 document.getElementById('finish-quest-btn').onclick = function () {
                     fetch(`/api/games/${gameId}/quests/add`, {
