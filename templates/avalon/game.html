@@ -115,6 +115,12 @@
                                 loadPlayersDropdown();
                             });
                     };
+                    document.getElementById('new-player-name').addEventListener("keydown", function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            document.getElementById('add-new-btn').click();
+                        }
+                    });
                     document.getElementById('add-new-btn').onclick = function () {
                         const name = document.getElementById('new-player-name').value.trim();
                         if (!name) return alert('Name required');
