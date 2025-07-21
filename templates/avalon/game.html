@@ -19,6 +19,13 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="/avalon">Avalon</a>
+
+        <div class="ms-auto me-2 d-flex align-items center">
+            <div class="form-check"> 
+                <label for="enable-sus" class="text-light">Enable AI-Powered Hint Provider?</label>
+                <input class="form-check-input" type="checkbox" id="enable-sus" checked>
+            </div>
+        </div>
     </div>
 </nav>
 <div class="container mt-5" id="avalon-game-container">
@@ -27,9 +34,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const gameId = window.location.pathname.split('/').pop();
-    let playerNameMap = {};
+    let playerNameMap = new Map();
     loadPlayerMap();
     loadAvalonGame();
+    setTimeout(susPopup, 200000);
 
     // Store setup UI as a template string
     const setupTemplate = `
@@ -81,13 +89,33 @@
     </div>
 `;
 
+
+    function susPopup() {
+        console.log(playerNameMap);
+        if (document.getElementById('enable-sus').checked) {
+            if (playerNameMap.size == 0) {
+                alert("George is sus...");
+            }
+            else {
+                const susPlayer = [...playerNameMap.values()][Math.floor(Math.random() * playerNameMap.size)];
+                const roles = ["sus", "Merlin"];
+                const role = roles[Math.floor(Math.random() * roles.length)];
+                const flavors = ["for sure", "i think", "perhaps", ""];
+                const flavor = flavors[Math.floor(Math.random() * flavors.length)];
+                alert(`${susPlayer} is ${role} ${flavor}`);
+            }
+        }
+        const delay = Math.floor(Math.random() * 180) * 1000 + 120000;
+        setTimeout(susPopup, delay);
+    }
+
     function loadPlayerMap() {
-        playerNameMap = {};
+        playerNameMap = new Map();
         fetch('/api/players/get')
             .then(r => r.json())
             .then(data => {
                 (data.players || []).forEach(p => {
-                    playerNameMap[p.player_id] = p.name;
+                    playerNameMap.set(p.player_id, p.name);
                 });
             });
     }
@@ -289,15 +317,15 @@
                         const questBody = questCard.querySelector('.card-body');
                         if (quest.rounds && quest.rounds.length > 0) {
                             quest.rounds.forEach((round, rIdx) => {
-                                const teamNames = round.team.map(a => playerNameMap[a] || a).join(', ');
-                                const approvals = (round.approvals || []).map(a => playerNameMap[a] || a).join(', ');
+                                const teamNames = round.team.map(a => playerNameMap.get(a) || a).join(', ');
+                                const approvals = (round.approvals || []).map(a => playerNameMap.get(a) || a).join(', ');
                                 const allPlayers = state.players.map(p => p.player_id);
-                                const rejects = allPlayers.filter(a => !(round.approvals || []).includes(a)).map(a => playerNameMap[a] || a).join(', ');
+                                const rejects = allPlayers.filter(a => !(round.approvals || []).includes(a)).map(a => playerNameMap.get(a) || a).join(', ');
                                 questBody.innerHTML += `
                     <div class='card mb-2'>
                       <div class='card-header'>Round ${rIdx + 1}</div>
                       <div class='card-body'>
-                        <div><strong>King:</strong> ${playerNameMap[round.king] || round.king}</div>
+                        <div><strong>King:</strong> ${playerNameMap.get(round.king) || round.king}</div>
                         <div><strong>Team:</strong> ${teamNames}</div>
                         <div><strong>Approved by:</strong> ${approvals || '<span class="text-muted">None</span>'}</div>
                         <div><strong>Rejected by:</strong> ${rejects || '<span class="text-muted">None</span>'}</div>
@@ -337,7 +365,7 @@
                     card.className = 'card me-2 mb-2 selectable-card';
                     card.style.cursor = 'pointer';
                     card.setAttribute('data-player_id', player_id);
-                    card.textContent = playerNameMap[player_id] || player_id;
+                    card.textContent = playerNameMap.get(player_id) || player_id;
                     card.onclick = function () {
                         document.querySelectorAll('#king-select .selectable-card').forEach(c => c.classList.remove('bg-info'));
                         card.classList.toggle('bg-info');
@@ -351,7 +379,7 @@
                     card.className = 'card me-2 mb-2 selectable-card';
                     card.style.cursor = 'pointer';
                     card.setAttribute('data-player_id', player_id);
-                    card.textContent = playerNameMap[player_id] || player_id;
+                    card.textContent = playerNameMap.get(player_id) || player_id;
                     card.onclick = function () {
                         card.classList.toggle('bg-info');
                     };
@@ -364,7 +392,7 @@
                     card.className = 'card me-2 mb-2 selectable-card';
                     card.style.cursor = 'pointer';
                     card.setAttribute('data-player_id', player_id);
-                    card.textContent = playerNameMap[player_id] || player_id;
+                    card.textContent = playerNameMap.get(player_id) || player_id;
                     card.onclick = function () {
                         card.classList.toggle('bg-success');
                     };
@@ -495,7 +523,7 @@
                 (game.state.players || []).forEach(p => {
                     const btn = document.createElement('button');
                     btn.className = 'btn btn-outline-secondary btn-md me-2 mb-2';
-                    btn.textContent = playerNameMap[p.player_id] || p.name || p.player_id;
+                    btn.textContent = playerNameMap.get(p.player_id) || p.name || p.player_id;
                     btn.setAttribute('data-player_id', p.player_id);
                     btn.onmouseover = function () {
                         btn.classList.remove('btn-outline-secondary');
