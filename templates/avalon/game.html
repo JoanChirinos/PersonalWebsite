@@ -121,7 +121,7 @@
                         fetch('/api/players/get')
                             .then(r => r.json())
                             .then(data => {
-                                 fetch('/api/players/add', {
+                                fetch('/api/players/add', {
                                     method: 'POST',
                                     headers: {'Content-Type': 'application/json'},
                                     body: JSON.stringify({name})
@@ -169,6 +169,97 @@
                 }
                 // Active game: show quests and current quest UI
                 const state = game.state;
+                // Timer
+
+                container.innerHTML += `<div id="floating-timer" style="position:fixed;top:100px;right:40px;z-index:9999;background:#fff;border:2px solid #333;border-radius:8px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.2);width:300px;cursor:move;">
+    <div style="font-weight:bold;margin-bottom:8px;">Game Timer</div>
+    <div id="timer-display" style="font-size:2rem;text-align:center;">00:00</div>
+    <div class="input-group mb-2">
+        <input type="number" id="timer-minutes" class="form-control" placeholder="Minutes" min="0" style="width:80px;" value="3">
+        <input type="number" id="timer-seconds" class="form-control" placeholder="Seconds" min="0" max="59" value="0" style="width:80px;">
+    </div>
+    <div class="btn-group mb-2 mx-auto w-100" role="group">
+        <button class="btn btn-success btn-sm" id="start-timer">Start</button>
+        <button class="btn btn-warning btn-sm" id="pause-timer">Pause</button>
+        <button class="btn btn-danger btn-sm" id="reset-timer">Reset</button>
+    </div>
+</div>`
+                let timerInterval = null;
+                let timerRemaining = 0;
+                let timerPaused = false;
+
+                function updateTimerDisplay() {
+                    const min = Math.floor(timerRemaining / 60);
+                    const sec = timerRemaining % 60;
+                    document.getElementById('timer-display').textContent =
+                        `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+                }
+
+                function setTimer() {
+                    const min = parseInt(document.getElementById('timer-minutes').value) || 0;
+                    const sec = parseInt(document.getElementById('timer-seconds').value) || 0;
+                    timerRemaining = min * 60 + sec;
+                    updateTimerDisplay();
+                    pauseTimer();
+                }
+
+
+                function startTimer() {
+                    setTimer();
+                    if (timerInterval) return;
+                    timerPaused = false;
+                    timerInterval = setInterval(() => {
+                        if (!timerPaused && timerRemaining > 0) {
+                            timerRemaining--;
+                            updateTimerDisplay();
+                            if (timerRemaining === 0) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                                alert('Time is up!');
+                            }
+                        }
+                    }, 1000);
+                }
+                document.getElementById('start-timer').onclick = startTimer;
+
+                function pauseTimer() {
+                    timerPaused = true;
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                }
+                document.getElementById('pause-timer').onclick = pauseTimer;
+
+                function resetTimer() {
+                    pauseTimer();
+                    timerRemaining = 0;
+                    updateTimerDisplay();
+                }
+                document.getElementById('reset-timer').onclick = resetTimer;
+
+// Drag functionality
+                const timerDiv = document.getElementById('floating-timer');
+                let offsetX, offsetY, isDragging = false;
+
+                timerDiv.addEventListener('mousedown', function (e) {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                    isDragging = true;
+                    offsetX = e.clientX - timerDiv.offsetLeft;
+                    offsetY = e.clientY - timerDiv.offsetTop;
+                    document.body.style.userSelect = 'none';
+                });
+                document.addEventListener('mousemove', function (e) {
+                    if (isDragging) {
+                        timerDiv.style.left = (e.clientX - offsetX) + 'px';
+                        timerDiv.style.top = (e.clientY - offsetY) + 'px';
+                        timerDiv.style.right = 'auto';
+                    }
+                });
+                document.addEventListener('mouseup', function () {
+                    isDragging = false;
+                    document.body.style.userSelect = '';
+                });
                 // Previous quests
                 if (state.quests && state.quests.length > 0) {
                     state.quests.forEach((quest, qIdx) => {
