@@ -424,7 +424,7 @@
                         });
                     }
                     let dontpanic = 10;
-                    while (selectedPlayers.length < parseInt(document.getElementById('team-count').value) && selectedPlayers.length < players.length && panic) {
+                    while (selectedPlayers.length < parseInt(document.getElementById('team-count').value) && selectedPlayers.length < players.length && dontpanic) {
                         const randomIndex = Math.floor(Math.random() * players.length);
                         const playerCard = players[randomIndex];
                         if (!selectedPlayers.includes(playerCard)) {
