@@ -212,8 +212,8 @@
                 cqBody.innerHTML += `<div class='mb-2'><strong>Approvals:</strong> <div id='approvals-select' class='d-flex flex-wrap'></div></div>`;
                 // Failures selection
                 cqBody.innerHTML += `<div class='mb-2'><strong>Failures:</strong> <div id='failures-select' class='d-flex flex-wrap'></div></div>`;
-                // Buttons
-                cqBody.innerHTML += `<div class='mt-3'><button id='finish-round-btn' class='btn btn-primary me-2'>Finish Round</button><button id='finish-quest-btn' class='btn btn-warning'>Finish Quest</button></div>`;
+                // Buttons.
+                cqBody.innerHTML += `<div class='mt-3'><button id='random-king-btn' class='btn btn-primary me-2'>Randomize King!</button><button id='random-team-btn' class='btn btn-primary me-2'>Randomize Team!</button><div class="d-inline-block py-auto mx-2" style="width: 80px"><input class="form-control" type="number" min="2" max="6" id="team-count" value="2"/></div><button id='finish-round-btn' class='btn btn-success me-2'>Finish Round</button><button id='finish-quest-btn' class='btn btn-warning'>Finish Quest</button></div>`;
                 container.appendChild(currentQuestCard);
 
                 // Render player cards for selection
@@ -296,6 +296,39 @@
                             else location.reload();
                         });
                 };
+
+                document.getElementById('random-king-btn').onclick = function () {
+                    const players = Array.from(document.querySelectorAll('#king-select .selectable-card'));
+                    if (players.length === 0) return alert('No players available');
+                    const randomIndex = Math.floor(Math.random() * players.length);
+                    const selectedKing = players[randomIndex];
+                    document.querySelectorAll('#king-select .selectable-card').forEach(c => c.classList.remove('bg-info'));
+                    selectedKing.classList.add('bg-info');
+                }
+
+                document.getElementById('random-team-btn').onclick = function () {
+                    const players = Array.from(document.querySelectorAll('#team-select .selectable-card'));
+                    players.forEach(card => card.classList.remove('bg-info'));
+                    if (players.length === 0) return alert('No players available');
+                    // Randomly select 3 players for the team
+                    const selectedPlayers = [];
+                    const king = document.querySelector('#king-select .bg-info');
+                    if (king) {
+                        const kingId = king.getAttribute('data-player_id');
+                        players.filter(p => p.getAttribute('data-player_id') === kingId).forEach(p => {
+                            if (!selectedPlayers.includes(p)) selectedPlayers.push(p);
+                            p.classList.add('bg-info');
+                        });
+                    }
+                    while (selectedPlayers.length < parseInt(document.getElementById('team-count').value) && selectedPlayers.length < players.length) {
+                        const randomIndex = Math.floor(Math.random() * players.length);
+                        const playerCard = players[randomIndex];
+                        if (!selectedPlayers.includes(playerCard)) {
+                            selectedPlayers.push(playerCard);
+                            playerCard.classList.add('bg-info');
+                        }
+                    }
+                }
 // Finish quest button
                 document.getElementById('finish-quest-btn').onclick = function () {
                     fetch(`/api/games/${gameId}/quests/add`, {
