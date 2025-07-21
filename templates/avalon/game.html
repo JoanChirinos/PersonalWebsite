@@ -320,14 +320,17 @@
                             p.classList.add('bg-info');
                         });
                     }
-                    while (selectedPlayers.length < parseInt(document.getElementById('team-count').value) && selectedPlayers.length < players.length) {
+                    let dontpanic = 10;
+                    while (selectedPlayers.length < parseInt(document.getElementById('team-count').value) && selectedPlayers.length < players.length && panic) {
                         const randomIndex = Math.floor(Math.random() * players.length);
                         const playerCard = players[randomIndex];
                         if (!selectedPlayers.includes(playerCard)) {
                             selectedPlayers.push(playerCard);
                             playerCard.classList.add('bg-info');
                         }
+                        dontpanic--;
                     }
+                    console.log('panicked :(', dontpanic);
                 };
 // Finish quest button
                 document.getElementById('finish-quest-btn').onclick = function () {
