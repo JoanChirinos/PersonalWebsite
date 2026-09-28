@@ -1,0 +1,27 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-personalwebsite
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, macOS, personalwebsite]
+    steps:
+      - name: Update live checkout to origin/main
+        run: |
+          cd "$HOME/PersonalWebsite"
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Build and publish
+        env:
+          SKIP_PULL: "1"
+        run: |
+          cd "$HOME/PersonalWebsite"
+          ./deploy.sh
